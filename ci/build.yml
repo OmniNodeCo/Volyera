@@ -1,6 +1,10 @@
-# Automatically build the project for every push and pull request.
+# Automatically build the project for every push and pull request,
+# or on demand from the Actions tab (workflow_dispatch).
 name: build
-on: [pull_request, push]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
