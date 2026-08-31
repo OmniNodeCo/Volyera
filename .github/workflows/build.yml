@@ -1,6 +1,17 @@
-# Automatically build the project for every push and pull request.
+# Volyera CI — copy this file to .github/workflows/build.yml to enable it.
+# (Automation tokens can't push workflow files, so this lives in ci/ as a reference.)
+#
+# Builds on every push / PR, can be run manually (workflow_dispatch), and on
+# pushes it commits the built jar back into dist/ so the latest jar is always
+# downloadable straight from the repo.
 name: build
-on: [pull_request, push]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -24,3 +35,16 @@ jobs:
         with:
           name: Volyera
           path: build/libs/
+      - name: commit jar to dist
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p dist
+          cp build/libs/*.jar dist/
+          rm -f dist/*-sources.jar
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dist
+          git diff --cached --quiet || {
+            git commit -m "ci: update dist jar [skip ci]"
+            git push
+          }
