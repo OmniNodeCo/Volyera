@@ -3,19 +3,21 @@
 # (Automation tokens can't push workflow files, so this lives in ci/ as a reference.)
 #
 # One-time setup (see "Automated publishing" in README.md):
-#   1. Create the project once on modrinth.com (icon, description, etc.).
-#   2. Modrinth → user settings → PATs → create a token with the
-#      "Create versions" scope → save it as the repo secret  MODRINTH_TOKEN
-#      (GitHub → Settings → Secrets and variables → Actions → New secret).
-#   3. Save the project's ID (Modrinth project page → ⋮ → Copy ID) as the
-#      repo *variable*  MODRINTH_ID  (same page, "Variables" tab).
+#   secret  MODRINTH_TOKEN — Modrinth PAT with the "Create versions" scope
+#                            (add "Read user data" too for better preflight checks)
+#   variable MODRINTH_ID   — the Modrinth project ID (project page → ⋮ → Copy ID)
 #
-# Then publish all 8 jars with:
-#   git tag v1.2.0 && git push origin v1.2.0     (or run it manually from the Actions tab)
+# Publish everything:      git tag v1.2.0 && git push origin v1.2.0
+# Publish a selection:     Actions tab → publish → Run workflow → targets: "26.2, 1.21.8"
 name: publish
 
 on:
   workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Versions to publish: "all" or a comma/space separated list (e.g. "26.2, 1.21.8, 1.21.1")'
+        required: false
+        default: 'all'
   push:
     tags: ['v*']
 
@@ -23,43 +25,70 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - name: verify modrinth credentials
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_ID: ${{ vars.MODRINTH_ID }}
+        run: |
+          ok=1
+          [ -n "$MODRINTH_TOKEN" ] || { echo "::error::Repo secret MODRINTH_TOKEN is not set (Settings → Secrets and variables → Actions → Secrets)."; ok=0; }
+          [ -n "$MODRINTH_ID" ]    || { echo "::error::Repo variable MODRINTH_ID is not set (Settings → Secrets and variables → Actions → Variables)."; ok=0; }
+          [ "$ok" = "1" ] || exit 1
+          # Does the project exist? (public endpoint, catches a wrong/mistyped ID)
+          if ! curl -sf "https://api.modrinth.com/v2/project/${MODRINTH_ID}" -o /tmp/project.json; then
+            echo "::error::Modrinth project '${MODRINTH_ID}' not found. Use the project ID (project page → ⋮ → Copy ID) or the exact slug."
+            exit 1
+          fi
+          echo "Project OK: $(jq -r .title /tmp/project.json) (id $(jq -r .id /tmp/project.json))"
+          # Is the token itself valid? (needs the "Read user data" scope; warn only)
+          if curl -sf -H "Authorization: ${MODRINTH_TOKEN}" https://api.modrinth.com/v2/user -o /tmp/user.json; then
+            echo "Token OK: authenticated as $(jq -r .username /tmp/user.json)"
+          else
+            echo "::warning::Could not verify the token via /v2/user. That's fine if the PAT only has the 'Create versions' scope — but if publishing 401s, the token is invalid/expired, was created on an account without upload permission on this project, or lacks the 'Create versions' scope."
+          fi
+
+      - name: pick targets
+        id: pick
+        env:
+          REQUESTED: ${{ github.event.inputs.targets || 'all' }}
+        run: |
+          ALL='[
+            {"target":"1.21.1",  "game_versions":"1.21\n1.21.1"},
+            {"target":"1.21.4",  "game_versions":"1.21.4"},
+            {"target":"1.21.5",  "game_versions":"1.21.5"},
+            {"target":"1.21.8",  "game_versions":"1.21.6\n1.21.7\n1.21.8"},
+            {"target":"1.21.10", "game_versions":"1.21.9\n1.21.10"},
+            {"target":"1.21.11", "game_versions":"1.21.11"},
+            {"target":"26.1",    "game_versions":"26.1\n26.1.1\n26.1.2"},
+            {"target":"26.2",    "game_versions":"26.2"}
+          ]'
+          REQ=$(echo "$REQUESTED" | tr -d ' ' )
+          if [ -z "$REQ" ] || [ "$REQ" = "all" ]; then
+            MATRIX=$(echo "$ALL" | jq -c .)
+          else
+            MATRIX=$(echo "$ALL" | jq -c --arg sel ",$REQ," '[ .[] | select($sel | contains("," + .target + ",")) ]')
+          fi
+          COUNT=$(echo "$MATRIX" | jq length)
+          if [ "$COUNT" = "0" ]; then
+            echo "::error::No valid targets in '$REQUESTED'. Valid: 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1, 26.2 (or 'all')."
+            exit 1
+          fi
+          echo "Publishing $COUNT target(s): $(echo "$MATRIX" | jq -r '[.[].target] | join(", ")')"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: prepare
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       max-parallel: 2
       matrix:
-        include:
-          - target: '1.21.1'
-            game_versions: |
-              1.21
-              1.21.1
-          - target: '1.21.4'
-            game_versions: |
-              1.21.4
-          - target: '1.21.5'
-            game_versions: |
-              1.21.5
-          - target: '1.21.8'
-            game_versions: |
-              1.21.6
-              1.21.7
-              1.21.8
-          - target: '1.21.10'
-            game_versions: |
-              1.21.9
-              1.21.10
-          - target: '1.21.11'
-            game_versions: |
-              1.21.11
-          - target: '26.1'
-            game_versions: |
-              26.1
-              26.1.1
-              26.1.2
-          - target: '26.2'
-            game_versions: |
-              26.2
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -74,14 +103,14 @@ jobs:
         run: ./gradlew build -PmcTarget=${{ matrix.target }}
       - name: read mod version
         run: echo "MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2)" >> "$GITHUB_ENV"
-      - name: publish to modrinth (and attach to the github release)
+      - name: publish to modrinth
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-          # also attach the jar to the GitHub release for the tag
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # attach the jar to the GitHub release too (only on tag pushes)
+          github-token: ${{ startsWith(github.ref, 'refs/tags/') && secrets.GITHUB_TOKEN || '' }}
 
           files: build/libs/!(*-sources).jar
           name: Volyera ${{ env.MOD_VERSION }}+${{ matrix.target }}

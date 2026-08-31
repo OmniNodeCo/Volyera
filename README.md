@@ -108,8 +108,29 @@ Then every release is one command:
 git tag v1.2.0 && git push origin v1.2.0
 ```
 
-…or press *Run workflow* on the Actions tab. Bump `mod_version` in
-`gradle.properties` (and add a `CHANGELOG.md` entry) before tagging.
+…or press *Run workflow* on the Actions tab, where the **targets** input lets
+you publish only some versions (e.g. `26.2, 1.21.8`) instead of `all`. Bump
+`mod_version` in `gradle.properties` (and add a `CHANGELOG.md` entry) before
+tagging.
+
+### Troubleshooting `401 (Unauthorized … permission to upload this version)`
+
+Modrinth rejected the token at upload time. Check, in order:
+
+1. **Scope** — the PAT must have the **Create versions** scope ticked
+   (Modrinth → Settings → PATs). Recreate it if unsure; scopes can't be
+   inspected after creation.
+2. **Expiry** — Modrinth PATs require an expiry date; an expired token 401s.
+3. **Account** — the PAT must belong to the account (or org member with the
+   *Upload version* permission) that owns the project. A token from another
+   account can't upload.
+4. **Copy/paste** — the secret must be the full token (starts with `mrp_`),
+   no spaces or trailing newline. Re-save the `MODRINTH_TOKEN` secret.
+5. **Project ID** — `MODRINTH_ID` must be *your* project's ID (project page
+   → ⋮ → Copy ID). Publishing to someone else's project 401s the same way.
+
+The workflow's `prepare` job now pre-checks the project ID and token and
+prints what it found, so a bad credential fails fast with a clear message.
 
 ## Project layout
 
