@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " A ",
+    "AEA",
+    " A "
+  ],
+  "key": {
+    "A": "minecraft:amethyst_shard",
+    "E": "minecraft:ender_pearl"
+  },
+  "result": {
+    "id": "volyera:void_shard",
+    "count": 4
+  }
+}

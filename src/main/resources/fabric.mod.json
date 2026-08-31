@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "volyera",
-	"version": "1.1.0",
+	"version": "${version}",
 	"name": "Volyera",
 	"description": "Volyera weaves six new enchantments and the voidsteel arsenal into the world: strike with the void, leech life from your foes, freeze them mid-swing, hurl them away on a tempest, ward yourself against arcane harm, and forge weapons from the dark between the stars.",
 	"authors": [
@@ -21,8 +21,8 @@
 	},
 	"depends": {
 		"fabricloader": ">=0.15.0",
-		"minecraft": "~1.21",
-		"java": ">=21",
+		"minecraft": "${minecraft_range}",
+		"java": ">=${java_min}",
 		"fabric-api": "*"
 	}
 }

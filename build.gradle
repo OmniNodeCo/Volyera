@@ -1,39 +1,117 @@
 plugins {
-	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
+	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
 }
 
-version = project.version
+// ---------------------------------------------------------------------------
+// Multi-version target table.
+//   mc    - Minecraft version compiled against
+//   fapi  - Fabric API version
+//   range - fabric.mod.json "minecraft" dependency range for the built jar
+//   java  - Java release (21 for 1.21.x, 25 for 26.x)
+//   code  - Java source variant under versions/code/
+//   res   - resource variant under versions/res/ (recipe format etc.)
+//   remap - true for the obfuscated 1.21.x era (fabric-loom-remap + mojmap),
+//           false for 26.x where Minecraft ships unobfuscated (fabric-loom)
+// ---------------------------------------------------------------------------
+def targets = [
+	'1.21.1':  [mc: '1.21.1',  fapi: '0.116.15+1.21.1', range: '>=1.21 <=1.21.1',    java: 21, code: 'v1_21_1',  res: 'legacy', remap: true],
+	'1.21.4':  [mc: '1.21.4',  fapi: '0.119.4+1.21.4',  range: '1.21.4',             java: 21, code: 'v1_21_4',  res: 'modern', remap: true],
+	'1.21.5':  [mc: '1.21.5',  fapi: '0.128.2+1.21.5',  range: '1.21.5',             java: 21, code: 'v1_21_5',  res: 'modern', remap: true],
+	'1.21.8':  [mc: '1.21.8',  fapi: '0.136.1+1.21.8',  range: '>=1.21.6 <=1.21.8',  java: 21, code: 'v1_21_5',  res: 'modern', remap: true],
+	'1.21.10': [mc: '1.21.10', fapi: '0.138.4+1.21.10', range: '>=1.21.9 <=1.21.10', java: 21, code: 'v1_21_5',  res: 'modern', remap: true],
+	'1.21.11': [mc: '1.21.11', fapi: '0.141.6+1.21.11', range: '1.21.11',            java: 21, code: 'v1_21_11', res: 'modern', remap: true],
+	'26.1':    [mc: '26.1.2',  fapi: '0.145.1+26.1',    range: '>=26.1 <=26.1.2',    java: 25, code: 'v26',      res: 'modern', remap: false],
+	'26.2':    [mc: '26.2',    fapi: '0.158.0+26.2',    range: '~26.2',              java: 25, code: 'v26',      res: 'modern', remap: false],
+]
+
+def target = (project.findProperty('mcTarget') ?: project.default_target).toString()
+def cfg = targets[target]
+if (cfg == null) {
+	throw new GradleException("Unknown mcTarget '${target}'. Supported: ${targets.keySet().join(', ')}")
+}
+logger.lifecycle("Volyera: building for Minecraft ${cfg.mc} (target ${target}, code ${cfg.code}, res ${cfg.res})")
+
+apply plugin: (cfg.remap ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom')
+
+version = "${project.mod_version}+${target}"
 group = project.group
 
 base {
 	archivesName = 'volyera'
 }
 
+sourceSets.main.java.srcDir "versions/code/${cfg.code}/java"
+sourceSets.main.resources.srcDir "versions/res/${cfg.res}/resources"
+
 repositories {
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// Loom adds the essential maven repositories automatically.
 }
 
 dependencies {
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings loom.officialMojangMappings()
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	minecraft "com.mojang:minecraft:${cfg.mc}"
+	if (cfg.remap) {
+		mappings loom.officialMojangMappings()
+		modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+		modImplementation "net.fabricmc.fabric-api:fabric-api:${cfg.fapi}"
+	} else {
+		implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+		implementation "net.fabricmc.fabric-api:fabric-api:${cfg.fapi}"
+	}
+}
 
-	// Fabric API (item groups, registry helpers).
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+processResources {
+	def props = [
+		version: project.version.toString(),
+		minecraft_range: cfg.range.toString(),
+		java_min: cfg.java.toString(),
+	]
+	inputs.properties props
+	filesMatching("fabric.mod.json") {
+		expand props
+	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = cfg.java
 }
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.toVersion(cfg.java)
+	targetCompatibility = JavaVersion.toVersion(cfg.java)
 }
 
 jar {
 	from("LICENSE") {
 		rename { "${it}_volyera" }
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildAll: builds every supported target sequentially via nested builds.
+// Only registered when no explicit -PmcTarget was given (prevents recursion).
+// ---------------------------------------------------------------------------
+if (!project.hasProperty('mcTarget')) {
+	def previous = tasks.named('build')
+	def nested = []
+	targets.keySet().findAll { it != target }.each { t ->
+		def taskName = "buildTarget_${t.replace('.', '_')}"
+		def tk = tasks.register(taskName, GradleBuild) {
+			dir = projectDir
+			buildName = "volyera-${t}"
+			tasks = ['build']
+			startParameter.projectProperties = [mcTarget: t]
+		}
+		def prevRef = previous
+		tk.configure { mustRunAfter(prevRef) }
+		previous = tk
+		nested << tk
+	}
+	tasks.register('buildAll') {
+		group = 'build'
+		description = 'Builds Volyera for every supported Minecraft version.'
+		dependsOn tasks.named('build')
+		dependsOn nested
 	}
 }

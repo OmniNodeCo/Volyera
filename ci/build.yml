@@ -1,9 +1,9 @@
 # Volyera CI — copy this file to .github/workflows/build.yml to enable it.
 # (Automation tokens can't push workflow files, so this lives in ci/ as a reference.)
 #
-# Builds on every push / PR, can be run manually (workflow_dispatch), and on
-# pushes it commits the built jar back into dist/ so the latest jar is always
-# downloadable straight from the repo.
+# Builds every supported Minecraft version in parallel, uploads each jar as an
+# artifact, and on pushes commits the jars into dist/ so the latest builds are
+# always downloadable straight from the repo.
 name: build
 on:
   push:
@@ -16,6 +16,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ['1.21.1', '1.21.4', '1.21.5', '1.21.8', '1.21.10', '1.21.11', '26.1', '26.2']
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -29,22 +33,34 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build -PmcTarget=${{ matrix.target }}
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: Volyera
+          name: volyera-${{ matrix.target }}
           path: build/libs/
-      - name: commit jar to dist
-        if: github.event_name == 'push'
+
+  dist:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: download all jars
+        uses: actions/download-artifact@v7
+        with:
+          path: staging
+      - name: commit jars to dist
         run: |
           mkdir -p dist
-          cp build/libs/*.jar dist/
-          rm -f dist/*-sources.jar
+          rm -f dist/*.jar
+          find staging -name '*.jar' ! -name '*-sources.jar' -exec cp {} dist/ \;
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
           git add dist
           git diff --cached --quiet || {
-            git commit -m "ci: update dist jar [skip ci]"
+            git commit -m "ci: update dist jars [skip ci]"
             git push
           }

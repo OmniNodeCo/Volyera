@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "II",
+    "IS",
+    " S"
+  ],
+  "key": {
+    "I": "volyera:voidsteel_ingot",
+    "S": "minecraft:stick"
+  },
+  "result": {
+    "id": "volyera:voidsteel_axe"
+  }
+}
