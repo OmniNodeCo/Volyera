@@ -39,12 +39,14 @@ jobs:
           [ -n "$MODRINTH_TOKEN" ] || { echo "::error::Repo secret MODRINTH_TOKEN is not set (Settings → Secrets and variables → Actions → Secrets)."; ok=0; }
           [ -n "$MODRINTH_ID" ]    || { echo "::error::Repo variable MODRINTH_ID is not set (Settings → Secrets and variables → Actions → Variables)."; ok=0; }
           [ "$ok" = "1" ] || exit 1
-          # Does the project exist? (public endpoint, catches a wrong/mistyped ID)
-          if ! curl -sf "https://api.modrinth.com/v2/project/${MODRINTH_ID}" -o /tmp/project.json; then
-            echo "::error::Modrinth project '${MODRINTH_ID}' not found. Use the project ID (project page → ⋮ → Copy ID) or the exact slug."
-            exit 1
+          # Does the project exist? Draft (unpublished) projects are invisible to
+          # anonymous requests, so try authenticated first, then anonymous.
+          if curl -sf -H "Authorization: ${MODRINTH_TOKEN}" "https://api.modrinth.com/v2/project/${MODRINTH_ID}" -o /tmp/project.json \
+             || curl -sf "https://api.modrinth.com/v2/project/${MODRINTH_ID}" -o /tmp/project.json; then
+            echo "Project OK: $(jq -r .title /tmp/project.json) (id $(jq -r .id /tmp/project.json), status $(jq -r .status /tmp/project.json))"
+          else
+            echo "::warning::Could not resolve Modrinth project '${MODRINTH_ID}'. Either the ID is wrong (project page → ⋮ → Copy ID), or the project is still a draft and the token lacks the 'Read projects' scope. Continuing anyway — the upload step is the real test, and uploading to a draft works if the token has 'Create versions'."
           fi
-          echo "Project OK: $(jq -r .title /tmp/project.json) (id $(jq -r .id /tmp/project.json))"
           # Is the token itself valid? (needs the "Read user data" scope; warn only)
           if curl -sf -H "Authorization: ${MODRINTH_TOKEN}" https://api.modrinth.com/v2/user -o /tmp/user.json; then
             echo "Token OK: authenticated as $(jq -r .username /tmp/user.json)"

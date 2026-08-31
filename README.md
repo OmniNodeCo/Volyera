@@ -96,8 +96,9 @@ One-time setup:
    icon from `src/main/resources/assets/volyera/icon.png`, paste the
    description from `MODRINTH.md`).
 2. Modrinth → user settings → **PATs** → create a token with the
-   **Create versions** scope → save it as the GitHub Actions **secret**
-   `MODRINTH_TOKEN`.
+   **Create versions** scope (tick **Read projects** and **Read user data**
+   too so the workflow's preflight checks can verify your setup) → save it as
+   the GitHub Actions **secret** `MODRINTH_TOKEN`.
 3. Copy the project ID (project page → ⋮ → *Copy ID*) → save it as the GitHub
    Actions **variable** `MODRINTH_ID`.
 4. Copy `ci/publish.yml` to `.github/workflows/publish.yml`.
