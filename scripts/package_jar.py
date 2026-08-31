@@ -17,6 +17,11 @@ RES = os.path.join(ROOT, "src", "main", "resources")
 
 
 def main() -> None:
+    sys.exit(
+        "Since v1.1.0 Volyera contains compiled code; a zip of resources is no\n"
+        "longer a complete mod jar. Build with ./gradlew build or download the\n"
+        "jar from the GitHub Actions 'Volyera' artifact instead.")
+
     with open(os.path.join(RES, "fabric.mod.json")) as f:
         meta = json.load(f)
     version = meta["version"]

@@ -1,13 +1,15 @@
 # Volyera
 
 **Volyera** is a Fabric mod for Minecraft **1.21 / 1.21.1** that weaves six new
-enchantments into the world. It is fully **data-driven** (built on the 1.21
-enchantment data format), so the released jar contains no compiled code — it
-works as a lightweight jar addon that only requires the Fabric Loader. The
-Fabric API is *not* required.
+enchantments into the world. The enchantments are fully **data-driven**
+(built on the 1.21 enchantment data format); since v1.1.0 the mod also adds the
+**Voidsteel Arsenal** (weapons + crafting), which uses a small amount of code
+and requires the **Fabric API**.
 
-> Ready-to-play jar: [`dist/volyera-1.0.0.jar`](dist/volyera-1.0.0.jar) — drop
-> it into your `mods/` folder.
+> v1.1.0+ jars are built by `./gradlew build` or the GitHub Actions workflow
+> (Actions tab → latest build → `Volyera` artifact). The legacy data-only
+> [`dist/volyera-1.0.0.jar`](dist/volyera-1.0.0.jar) (enchantments only, no
+> Fabric API needed) remains available.
 
 ## Enchantments
 
@@ -23,11 +25,24 @@ Fabric API is *not* required.
 All six are obtainable from the **enchanting table**, **villager trades**,
 and **loot chests** (they're wired into `#minecraft:non_treasure`).
 
+## The Voidsteel Arsenal (v1.1.0+)
+
+| Item | Stats | Recipe |
+|---|---|---|
+| **Void Shard** | material | 4 amethyst shards around an ender pearl → ×4 |
+| **Voidsteel Ingot** | material | 2 void shards + iron ingot + obsidian (shapeless) |
+| **Voidsteel Sword** | 8 dmg · 1.6 spd | ingot / ingot / stick |
+| **Voidsteel Dagger** | 5 dmg · 3.0 spd | ingot / stick |
+| **Voidsteel War Axe** | 10 dmg · 1.0 spd | axe pattern with ingots |
+
+Voidsteel sits between diamond and netherite (1796 durability, enchantability
+18) and accepts every sword/axe enchantment, including Volyera's own.
+
 ## Installation
 
 1. Install the [Fabric Loader](https://fabricmc.net/use/) for Minecraft 1.21 or 1.21.1.
-2. Drop `volyera-1.0.0.jar` into your `mods/` folder.
-3. That's it — no Fabric API needed.
+2. Install the [Fabric API](https://modrinth.com/mod/fabric-api).
+3. Drop the Volyera jar into your `mods/` folder.
 
 ## Building from source
 
@@ -40,9 +55,8 @@ in [`ci/build.yml`](ci/build.yml) — copy it to `.github/workflows/build.yml` t
 build the jar automatically on every push (the automation used to create this
 repo cannot push workflow files itself).
 
-Because the mod is currently 100% data-driven, the jar can also be assembled
-without a toolchain — see `scripts/package_jar.py`, which zips
-`src/main/resources` into a valid mod jar.
+(`scripts/package_jar.py` built the data-only 1.0.0 jar; from 1.1.0 the mod
+contains compiled code, so use Gradle or CI instead.)
 
 ## Project layout
 

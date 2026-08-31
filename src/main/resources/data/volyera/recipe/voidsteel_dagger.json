@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "I",
+    "S"
+  ],
+  "key": {
+    "I": {
+      "item": "volyera:voidsteel_ingot"
+    },
+    "S": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "id": "volyera:voidsteel_dagger",
+    "count": 1
+  }
+}

@@ -3,6 +3,24 @@
 All notable changes to Volyera are documented here.
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.1.0] - 2026-08-31
+
+### Added
+- **The Voidsteel Arsenal** — a new weapon tier forged from the dark between the stars:
+  - **Void Shard** — crafted from 4 amethyst shards around an ender pearl (yields 4).
+  - **Voidsteel Ingot** — 2 void shards + iron ingot + obsidian (shapeless).
+  - **Voidsteel Sword** — 8 damage / 1.6 speed, 1796 durability.
+  - **Voidsteel Dagger** — 5 damage / blistering 3.0 speed.
+  - **Voidsteel War Axe** — 10 damage / 1.0 speed.
+- Weapons enchant exceptionally well (enchantability 18) and accept all sword/axe
+  enchantments — including Voidstrike, Lifeleech, Frostbrand, and Tempest.
+- Custom **Volyera creative tab**, hand-made pixel-art textures, crafting recipes
+  with vanilla-style recipe-book unlocks.
+
+### Changed
+- The mod now contains code and requires **Fabric API** (still tiny). Jars are
+  produced by `./gradlew build` or the GitHub Actions workflow.
+
 ## [1.0.0] - 2026-08-31
 
 Initial release. 🎉

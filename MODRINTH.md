@@ -2,7 +2,7 @@
 
 ## Summary (short description field)
 
-> Six lore-flavored enchantments — strike with the void, leech life, freeze and hurl your foes, ward off arcane harm, and land featherlight. 100% data-driven, zero dependencies.
+> Six lore-flavored enchantments and the voidsteel arsenal — strike with the void, leech life, freeze and hurl your foes, and forge daggers, swords and war axes from the dark between the stars.
 
 ## Description (markdown body)
 
@@ -17,10 +17,10 @@ same places you already hunt for power: the **enchanting table**, **villager
 trades**, and **loot chests**. No new machines, no new grind, no bloat. Just
 new power crackling through the tools you already carry.
 
-Built **100% data-driven** on Minecraft 1.21's enchantment engine:
+And since v1.1.0: the **Voidsteel Arsenal** — a weapon tier forged from
+amethyst, ender pearls and obsidian, sitting between diamond and netherite.
 
-- ✅ **Zero dependencies** — needs only the Fabric Loader. No Fabric API.
-- ✅ **Featherweight** — the jar contains no compiled code at all.
+- ✅ **Featherweight** — enchantments are 100% data-driven; only a sliver of code for the weapons.
 - ✅ **Plays fair** — balanced costs, weights, and vanilla-style exclusivity rules.
 - ✅ **Compatible** — merges into vanilla tags, so it coexists with other enchantment mods.
 
@@ -62,22 +62,37 @@ Enchant, trade, and loot — exactly like vanilla. All six are wired into
 `#minecraft:non_treasure`, so they roll naturally at the enchanting table,
 appear in librarian trades, and turn up on enchanted loot.
 
+---
+
+## ⚒️ The Voidsteel Arsenal *(v1.1.0+)*
+
+Shatter amethyst around an ender pearl to condense **Void Shards**, temper
+them with iron and obsidian into **Voidsteel Ingots**, and forge:
+
+- 🗡️ **Voidsteel Dagger** — 5 dmg at a blistering **3.0 attack speed**
+- ⚔️ **Voidsteel Sword** — **8 dmg**, more durable than diamond
+- 🪓 **Voidsteel War Axe** — a brutal **10 dmg**
+
+All voidsteel weapons boast **enchantability 18** (better than diamond) and
+accept every sword/axe enchantment — including Voidstrike, Lifeleech,
+Frostbrand, and Tempest.
+
 ## 🧩 Compatibility
 
 | | |
 |---|---|
 | **Minecraft** | 1.21 · 1.21.1 |
 | **Loader** | Fabric (Quilt works too) |
-| **Dependencies** | None — Fabric API not required |
-| **Server** | Required · **Client:** optional, but recommended so enchantment names display properly |
+| **Dependencies** | Fabric API |
+| **Sides** | Required on server and client |
 
-Because Volyera is pure data, it stacks cleanly alongside other enchantment
-mods — no mixins, no code, no conflicts.
+No mixins — Volyera merges into vanilla tags and registries, so it stacks
+cleanly alongside other content mods.
 
 ## 🔮 Roadmap
 
 The void is not done whispering: more enchantments (including treasure-only
-relics), and eventually mobs and materials from the Volyera mythos.
+relics), voidsteel armor, and mobs from the Volyera mythos.
 
 ---
 

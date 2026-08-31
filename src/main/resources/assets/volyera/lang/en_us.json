@@ -1,8 +1,14 @@
 {
-  "enchantment.volyera.voidstrike": "Voidstrike",
-  "enchantment.volyera.lifeleech": "Lifeleech",
-  "enchantment.volyera.frostbrand": "Frostbrand",
-  "enchantment.volyera.tempest": "Tempest",
+  "enchantment.volyera.duskveil": "Duskveil",
   "enchantment.volyera.featherstep": "Featherstep",
-  "enchantment.volyera.duskveil": "Duskveil"
+  "enchantment.volyera.frostbrand": "Frostbrand",
+  "enchantment.volyera.lifeleech": "Lifeleech",
+  "enchantment.volyera.tempest": "Tempest",
+  "enchantment.volyera.voidstrike": "Voidstrike",
+  "item.volyera.void_shard": "Void Shard",
+  "item.volyera.voidsteel_axe": "Voidsteel War Axe",
+  "item.volyera.voidsteel_dagger": "Voidsteel Dagger",
+  "item.volyera.voidsteel_ingot": "Voidsteel Ingot",
+  "item.volyera.voidsteel_sword": "Voidsteel Sword",
+  "itemGroup.volyera": "Volyera"
 }

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "volyera:void_shard"
+    },
+    {
+      "item": "volyera:void_shard"
+    },
+    {
+      "item": "minecraft:iron_ingot"
+    },
+    {
+      "item": "minecraft:obsidian"
+    }
+  ],
+  "result": {
+    "id": "volyera:voidsteel_ingot",
+    "count": 1
+  }
+}

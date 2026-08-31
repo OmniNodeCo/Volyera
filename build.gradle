@@ -18,10 +18,8 @@ dependencies {
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Volyera is fully data-driven (no compiled code yet), so the Fabric API
-	// is not required. Add it back here when code-driven features (mobs,
-	// items, blocks) are introduced:
-	// modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+	// Fabric API (item groups, registry helpers).
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
 
 tasks.withType(JavaCompile).configureEach {
