@@ -81,10 +81,25 @@ Frostbrand, and Tempest.
 
 | | |
 |---|---|
-| **Minecraft** | 1.21 · 1.21.1 |
+| **Minecraft** | 1.21 – 1.21.1 · 1.21.4 – 1.21.11 · 26.1 – 26.2 |
 | **Loader** | Fabric (Quilt works too) |
-| **Dependencies** | Fabric API |
+| **Dependencies** | Fabric API (matching your game version) |
 | **Sides** | Required on server and client |
+
+**Uploading to Modrinth:** create one version entry per jar. Use the jar's own
+version number (e.g. `1.2.0+26.2`) as the version number, and tick the game
+versions it covers:
+
+| File | Game versions to tick |
+|---|---|
+| `volyera-1.2.0+1.21.1.jar` | 1.21, 1.21.1 |
+| `volyera-1.2.0+1.21.4.jar` | 1.21.4 |
+| `volyera-1.2.0+1.21.5.jar` | 1.21.5 |
+| `volyera-1.2.0+1.21.8.jar` | 1.21.6, 1.21.7, 1.21.8 |
+| `volyera-1.2.0+1.21.10.jar` | 1.21.9, 1.21.10 |
+| `volyera-1.2.0+1.21.11.jar` | 1.21.11 |
+| `volyera-1.2.0+26.1.jar` | 26.1, 26.1.1, 26.1.2 |
+| `volyera-1.2.0+26.2.jar` | 26.2 |
 
 No mixins — Volyera merges into vanilla tags and registries, so it stacks
 cleanly alongside other content mods.

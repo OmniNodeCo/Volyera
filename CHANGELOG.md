@@ -3,6 +3,23 @@
 All notable changes to Volyera are documented here.
 Versioning follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.0] - 2026-08-31
+
+### Added
+- **Multi-version support**: one codebase now builds for Minecraft **1.21,
+  1.21.1, 1.21.4, 1.21.5, 1.21.6–1.21.8, 1.21.9–1.21.10, 1.21.11, 26.1–26.1.2,
+  and 26.2** (Fabric). Jar names carry the target, e.g. `volyera-1.2.0+26.2.jar`.
+- `./gradlew build -PmcTarget=<version>` and `./gradlew buildAll`.
+- Matrix CI (see `ci/build.yml`) building all targets in parallel and
+  publishing jars to `dist/`.
+
+### Notes
+- Identical gameplay on every version; per-era API/data differences
+  (ToolMaterial rework, `Properties.sword`, `Identifier` rename,
+  `FabricCreativeModeTab`, recipe/model format changes) are isolated in
+  `versions/`.
+- 26.x builds require Java 25 (matching the game); 1.21.x builds need Java 21.
+
 ## [1.1.0] - 2026-08-31
 
 ### Added
