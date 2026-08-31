@@ -84,6 +84,33 @@ A ready-made matrix workflow lives in [`ci/build.yml`](ci/build.yml) — copy it
 to `.github/workflows/build.yml` to build all versions in parallel on every
 push (the automation used to create this repo cannot push workflow files).
 
+## Automated publishing to Modrinth
+
+[`ci/publish.yml`](ci/publish.yml) builds all 8 jars and uploads each one to
+Modrinth as its own version (correct game-version tags, Fabric + Quilt,
+Fabric API marked required), and attaches them to the GitHub release.
+
+One-time setup:
+
+1. Create the project once on [modrinth.com](https://modrinth.com) (upload the
+   icon from `src/main/resources/assets/volyera/icon.png`, paste the
+   description from `MODRINTH.md`).
+2. Modrinth → user settings → **PATs** → create a token with the
+   **Create versions** scope → save it as the GitHub Actions **secret**
+   `MODRINTH_TOKEN`.
+3. Copy the project ID (project page → ⋮ → *Copy ID*) → save it as the GitHub
+   Actions **variable** `MODRINTH_ID`.
+4. Copy `ci/publish.yml` to `.github/workflows/publish.yml`.
+
+Then every release is one command:
+
+```bash
+git tag v1.2.0 && git push origin v1.2.0
+```
+
+…or press *Run workflow* on the Actions tab. Bump `mod_version` in
+`gradle.properties` (and add a `CHANGELOG.md` entry) before tagging.
+
 ## Project layout
 
 ```
