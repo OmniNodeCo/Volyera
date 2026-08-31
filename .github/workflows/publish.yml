@@ -1,0 +1,97 @@
+# Volyera → Modrinth auto-publish
+# Copy this file to .github/workflows/publish.yml to enable it.
+# (Automation tokens can't push workflow files, so this lives in ci/ as a reference.)
+#
+# One-time setup (see "Automated publishing" in README.md):
+#   1. Create the project once on modrinth.com (icon, description, etc.).
+#   2. Modrinth → user settings → PATs → create a token with the
+#      "Create versions" scope → save it as the repo secret  MODRINTH_TOKEN
+#      (GitHub → Settings → Secrets and variables → Actions → New secret).
+#   3. Save the project's ID (Modrinth project page → ⋮ → Copy ID) as the
+#      repo *variable*  MODRINTH_ID  (same page, "Variables" tab).
+#
+# Then publish all 8 jars with:
+#   git tag v1.2.0 && git push origin v1.2.0     (or run it manually from the Actions tab)
+name: publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - target: '1.21.1'
+            game_versions: |
+              1.21
+              1.21.1
+          - target: '1.21.4'
+            game_versions: |
+              1.21.4
+          - target: '1.21.5'
+            game_versions: |
+              1.21.5
+          - target: '1.21.8'
+            game_versions: |
+              1.21.6
+              1.21.7
+              1.21.8
+          - target: '1.21.10'
+            game_versions: |
+              1.21.9
+              1.21.10
+          - target: '1.21.11'
+            game_versions: |
+              1.21.11
+          - target: '26.1'
+            game_versions: |
+              26.1
+              26.1.1
+              26.1.2
+          - target: '26.2'
+            game_versions: |
+              26.2
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build -PmcTarget=${{ matrix.target }}
+      - name: read mod version
+        run: echo "MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2)" >> "$GITHUB_ENV"
+      - name: publish to modrinth (and attach to the github release)
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-id: ${{ vars.MODRINTH_ID }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          # also attach the jar to the GitHub release for the tag
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+          files: build/libs/!(*-sources).jar
+          name: Volyera ${{ env.MOD_VERSION }}+${{ matrix.target }}
+          version: ${{ env.MOD_VERSION }}+${{ matrix.target }}
+          version-type: release
+          changelog-file: CHANGELOG.md
+
+          loaders: |
+            fabric
+            quilt
+          game-versions: ${{ matrix.game_versions }}
+          dependencies: |
+            fabric-api(required)
