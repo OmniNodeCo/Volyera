@@ -1,0 +1,86 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "translate": "enchantment.volyera.tempest"
+  },
+  "effects": {
+    "minecraft:knockback": [
+      {
+        "effect": {
+          "type": "minecraft:add",
+          "value": {
+            "type": "minecraft:linear",
+            "base": 1.5,
+            "per_level_above_first": 1.0
+          }
+        }
+      }
+    ],
+    "minecraft:post_attack": [
+      {
+        "affected": "victim",
+        "enchanted": "attacker",
+        "effect": {
+          "type": "minecraft:play_sound",
+          "sound": "minecraft:entity.wind_charge.wind_burst",
+          "volume": 0.4,
+          "pitch": {
+            "type": "minecraft:uniform",
+            "min_inclusive": 1.1,
+            "max_exclusive": 1.4
+          }
+        },
+        "requirements": {
+          "condition": "minecraft:damage_source_properties",
+          "predicate": {
+            "is_direct": true
+          }
+        }
+      },
+      {
+        "affected": "victim",
+        "enchanted": "attacker",
+        "effect": {
+          "type": "minecraft:spawn_particles",
+          "particle": {
+            "type": "minecraft:gust_emitter_small"
+          },
+          "horizontal_position": {
+            "type": "entity_position"
+          },
+          "vertical_position": {
+            "type": "entity_position",
+            "offset": 0.5
+          },
+          "horizontal_velocity": {
+            "base": 0.0
+          },
+          "vertical_velocity": {
+            "base": 0.0
+          },
+          "speed": 0.0
+        },
+        "requirements": {
+          "condition": "minecraft:damage_source_properties",
+          "predicate": {
+            "is_direct": true
+          }
+        }
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 55,
+    "per_level_above_first": 20
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 8,
+    "per_level_above_first": 20
+  },
+  "slots": [
+    "mainhand"
+  ],
+  "supported_items": "#minecraft:enchantable/sword",
+  "weight": 3
+}

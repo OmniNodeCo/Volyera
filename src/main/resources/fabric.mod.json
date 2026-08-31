@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "volyera",
+	"version": "1.0.0",
+	"name": "Volyera",
+	"description": "Volyera weaves six new enchantments into the world: strike with the void, leech life from your foes, freeze them mid-swing, hurl them away on a tempest, ward yourself against arcane harm, and step down from any height unharmed.",
+	"authors": [
+		"OmniNodeCo"
+	],
+	"contact": {
+		"homepage": "https://github.com/OmniNodeCo/Volyera",
+		"sources": "https://github.com/OmniNodeCo/Volyera"
+	},
+	"license": "MIT",
+	"icon": "assets/volyera/icon.png",
+	"environment": "*",
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "~1.21"
+	}
+}
