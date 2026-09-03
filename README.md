@@ -12,9 +12,16 @@ and requires the **Fabric API**.
 
 ## Supported Minecraft versions
 
-One jar per version family, all built from this repo:
+This is one Volyera mod release, version **1.2.0**, supporting the complete
+**1.21.1–26.2** range. Minecraft and Java changed binary APIs between these
+releases, so the release contains one compatibility jar per version family;
+install only the jar matching the Minecraft version you run. They are all part
+of the same mod/project and use the same features, resources, and mod version.
 
-| Jar | Runs on |
+Build the complete release locally with `./gradlew buildUniversal` (or
+`./gradlew buildAll`).
+
+| Compatibility jar | Runs on |
 |---|---|
 | `volyera-1.2.0+1.21.1.jar` | 1.21, 1.21.1 |
 | `volyera-1.2.0+1.21.4.jar` | 1.21.4 |

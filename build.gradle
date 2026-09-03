@@ -110,8 +110,15 @@ if (!project.hasProperty('mcTarget')) {
 	}
 	tasks.register('buildAll') {
 		group = 'build'
-		description = 'Builds Volyera for every supported Minecraft version.'
+		description = 'Builds the one Volyera release for every supported Minecraft version.'
 		dependsOn tasks.named('build')
 		dependsOn nested
+	}
+
+	// Friendly alias: this is one mod release containing all compatibility jars.
+	tasks.register('buildUniversal') {
+		group = 'build'
+		description = 'Builds Volyera 1.2.0 for the complete 1.21.1–26.2 range.'
+		dependsOn tasks.named('buildAll')
 	}
 }
