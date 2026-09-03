@@ -53,12 +53,13 @@ jobs:
           path: staging
       - name: commit jars to dist
         run: |
+          # Rebase before touching dist; pull rejects a worktree with generated jars.
+          git pull --rebase
           mkdir -p dist
           rm -f dist/*.jar
           find staging -name '*.jar' ! -name '*-sources.jar' -exec cp {} dist/ \;
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
           git add dist
           git diff --cached --quiet || {
             git commit -m "ci: update dist jars [skip ci]"
