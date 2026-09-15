@@ -84,10 +84,20 @@ Install the jar matching your loader into `.minecraft/mods`.
 | Loader | Minimum version |
 |---|---|
 | Fabric Loader | 0.19.5 |
+| Fabric API | 0.160.0 (for the `fabric-resource-loader-v1` module) |
 | NeoForge | 26.2.0.87 |
 
-**Fabric API is not required.** Volyera's behaviour is entirely data-driven, and Fabric Loader
-exposes the jar's `data/` folder as a built-in datapack without it. The same is true on NeoForge.
+**Fabric API is required on Fabric; nothing extra is required on NeoForge.** Volyera's behaviour is
+entirely data-driven, but data-driven is not the same as self-loading: it is Fabric API's
+`fabric-resource-loader-v1` module that registers a mod's `data/` folder with the game's pack
+repository. Fabric Loader itself contains no pack-repository code. NeoForge treats every mod jar as
+a resource pack natively, so it needs no equivalent.
+
+This was learned the hard way and is now enforced by CI: with no resource loader, the jar still
+contained all 20 enchantment files, the server still booted cleanly with zero errors, `/datapack
+list` still showed only `vanilla`, and the enchantment registry was simply empty. A live-server
+probe that summons an item wearing `volyera:warding` next to a `minecraft:protection` control is
+what caught it — see the boot job in `.github/workflows/build.yml`.
 
 Development runs:
 
@@ -186,7 +196,7 @@ and that is where the loader split finally earns its keep:
 [`MODRINTH.md`](MODRINTH.md) holds a ready-to-paste Modrinth listing: the short summary, the full
 description body, and the recommended values for every listing field (categories, environment,
 loaders, game versions, dependencies). Both jars are content-identical, so one project with two
-loaders is enough — there is no Fabric API dependency to declare.
+loaders is enough. Declare Fabric API as a required dependency for the Fabric file only.
 
 ---
 

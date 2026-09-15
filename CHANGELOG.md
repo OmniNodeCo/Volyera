@@ -39,6 +39,16 @@ Tooling:
   runs in CI.
 - GitHub Actions workflow building both loaders on JDK 25 and uploading the jars.
 
+### Requirements
+
+- **Fabric:** Fabric Loader 0.19.5+ **and Fabric API**. Volyera calls no Fabric API code, but it
+  depends on the `fabric-resource-loader-v1` module, which is what registers a mod's `data/` folder
+  with the game's pack repository. Fabric Loader contains no pack-repository code of its own, so
+  without that module the enchantment files ship in the jar and are never read: the server boots
+  cleanly, logs nothing wrong, and the enchantment registry stays empty.
+- **NeoForge:** 26.2.0.87+. No extra dependency — NeoForge treats every mod jar as a resource pack
+  natively.
+
 ### Notes
 
 - Springstep uses the `bounciness` attribute, which is new in 26.2.

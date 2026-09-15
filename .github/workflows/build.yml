@@ -162,24 +162,32 @@ jobs:
 
   # A successful compile proves the Java is valid; it says nothing about whether
   # the game accepts the enchantment data, and "no errors in the log" is worth
-  # nothing if the files were never read.
+  # nothing if the files were never read. This job exists because that is exactly
+  # what happened: both jars shipped all 20 enchantment files, the server booted
+  # cleanly, and yet not one enchantment was registered.
   #
-  # So this job drives a live 26.2 server console and asks it to put one of our
-  # enchantments on an item. The first attempt at this passed while actually
-  # proving nothing: the item component SNBT used a `levels:` wrapper that 26.2
-  # no longer accepts, Minecraft logged "Summoned new Diamond Chestplate"
-  # anyway, and a naive success check read that as a pass. Two fixes here.
-  # Success now requires a clean decode with no serialization error, and the
-  # probe tries three candidate syntaxes at once so a single run can tell "our
-  # data is broken" apart from "our SNBT is out of date".
+  # So it drives a live 26.2 server console and asks it to put one of our
+  # enchantments on an item, beside a minecraft:protection control. A probe only
+  # counts if the item was summoned AND the component decoded with no
+  # serialization error - an earlier version checked for the summon alone and
+  # happily passed while Minecraft was logging "Failed to get element
+  # volyera:warding" and dropping the enchantment.
   #
-  # minecraft:protection is probed as a control on every syntax. A syntax only
-  # counts if the control decodes cleanly; if none do, the result is reported as
-  # inconclusive and the build fails rather than quietly claiming success.
+  # Three SNBT syntaxes are tried because 26.2 dropped the `levels:` wrapper.
+  # If no syntax decodes even the vanilla control, the result is reported as
+  # inconclusive and the job fails rather than quietly claiming success.
+  #
+  # Both loaders are booted: Fabric needs fabric-resource-loader-v1 for its data
+  # to be read at all, while NeoForge loads mod data natively, and that
+  # difference is precisely the kind of thing worth proving rather than assuming.
   boot:
-    name: Boot a 26.2 server and load the data
+    name: Boot a 26.2 server (${{ matrix.loader }})
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        loader: [fabric, neoforge]
 
     steps:
       - name: Checkout repository
@@ -197,8 +205,9 @@ jobs:
       - name: Start server, probe the registry three ways, then stop it
         shell: bash
         run: |
-          mkdir -p fabric/run
-          echo 'eula=true' > fabric/run/eula.txt
+          RUN_DIR="${{ matrix.loader }}/run"
+          mkdir -p "$RUN_DIR"
+          echo 'eula=true' > "$RUN_DIR/eula.txt"
 
           summon_cmd() { # tag, enchantment id, syntax variant
             local base='summon minecraft:item 0 100 0 {Tags:["%s"],Item:{id:"minecraft:diamond_chestplate",count:1,components:{%s}}}'
@@ -227,7 +236,7 @@ jobs:
             echo 'datapack list'
             sleep 4
             echo stop ) \
-            | timeout 540 ./gradlew :fabric:runServer --console=plain \
+            | timeout 560 ./gradlew ":${{ matrix.loader }}:runServer" --console=plain \
             > server.log 2>&1 || true
           echo "--- tail of server.log ---"
           tail -n 20 server.log || true
@@ -239,8 +248,9 @@ jobs:
       - name: Analyse the server log
         shell: bash
         run: |
+          LOADER="${{ matrix.loader }}"
           ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Registry .* reported an error'
-          DECODE_BAD='Serialization error|Failed to decode|Not a number|Unknown enchantment|Invalid|Expected'
+          DECODE_BAD='Serialization error|Failed to decode|Not a number|Unknown enchantment|Failed to get element|Invalid|Expected'
 
           started=no
           grep -q "Done (" server.log && started=yes || true
@@ -248,8 +258,6 @@ jobs:
           section() {
             awk -v a="$1" -v b="$2" 'index($0,a){f=1;next} index($0,b){f=0} f' server.log
           }
-          # A probe only counts as successful if the item was summoned AND the
-          # component decoded without complaint.
           probe_ok() {
             printf '%s' "$1" | grep -q "Summoned new" || return 1
             if printf '%s' "$1" | grep -qiE "$DECODE_BAD"; then return 1; fi
@@ -279,12 +287,13 @@ jobs:
 
           error_lines=$(grep -inE "$ERRORS" server.log | head -40 || true)
           error_count=$(printf '%s' "$error_lines" | grep -c . || true)
-          volyera_lines=$(grep -inE "volyera" server.log | head -20 || true)
+          mod_lines=$(grep -nE "^[[:space:]]*-[[:space:]]+[a-z]" server.log | head -40 || true)
+          loader_lines=$(grep -inE "volyera|resource-loader|resource_loader" server.log | head -25 || true)
           datapack_lines=$(grep -inE "data ?pack" server.log | head -20 || true)
           warn_lines=$(grep -inE "/(WARN|ERROR)]" server.log | head -40 || true)
 
           {
-            echo "### Server boot check"
+            echo "### Server boot check - $LOADER"
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
@@ -311,7 +320,7 @@ jobs:
             else
               echo "**No syntax decoded even the vanilla control**, so these rows say"
               echo "nothing about Volyera. The item component SNBT has probably moved"
-              echo "again in 26.2 and the probe needs updating."
+              echo "again and the probe needs updating."
             fi
             echo
             echo "<details><summary>raw probe output</summary>"
@@ -322,11 +331,19 @@ jobs:
             echo
             echo "</details>"
             echo
-            echo "#### Volyera in the log"
+            echo "#### Mods and resource loaders in the log"
             echo
             echo '```'
-            echo "${volyera_lines:-(no mentions)}"
+            echo "${loader_lines:-(no mentions)}"
             echo '```'
+            echo
+            echo "<details><summary>mod list as logged at startup</summary>"
+            echo
+            echo '```'
+            echo "${mod_lines:-(not logged)}"
+            echo '```'
+            echo
+            echo "</details>"
             echo
             echo "#### Datapack report"
             echo
@@ -383,12 +400,12 @@ jobs:
 
           if [ "$rejected" = yes ]; then
             echo "A syntax decoded vanilla minecraft:protection cleanly but rejected"
-            echo "volyera:warding - the enchantment is genuinely missing or invalid."
+            echo "volyera:warding - the enchantment is not in the registry at runtime."
             exit 1
           fi
           if [ "$proven" = yes ]; then
-            echo "PROVEN: a live 26.2 server put volyera:warding on an item, decoding"
-            echo "it exactly as it decoded the vanilla control."
+            echo "PROVEN: a live 26.2 ${{ matrix.loader }} server put volyera:warding on an"
+            echo "item, decoding it exactly as it decoded the vanilla control."
             exit 0
           fi
           if [ "$any_control" != yes ]; then

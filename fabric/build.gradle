@@ -5,8 +5,9 @@
 //   * the plugin id is `net.fabricmc.fabric-loom` (the non-remapping Loom), and
 //     dependencies use plain `implementation` instead of `modImplementation`
 //
-// Volyera's content is data-driven, so Fabric API is not required: the loader
-// exposes this jar's `data/` folder as a built-in datapack on its own.
+// Volyera's content is data-driven, and that is exactly why Fabric API *is*
+// required here: its resource-loader module is what registers a mod's `data/`
+// folder with the game's pack repository. Fabric Loader does not do this.
 plugins {
     id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
@@ -22,6 +23,13 @@ loom {
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+
+    // 26.x ships unobfuscated, so mod dependencies use plain `implementation`
+    // rather than `modImplementation`. Loom's fabricApi helper reads the
+    // published Fabric API POM to resolve this single module's own version,
+    // which is why gradle.properties pins the Fabric API release and not the
+    // module version.
+    implementation fabricApi.module('fabric-resource-loader-v1', String.valueOf(project.fabric_api_version))
 }
 
 processResources {

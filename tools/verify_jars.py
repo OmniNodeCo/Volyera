@@ -144,8 +144,13 @@ def verify_jar(path: str, loader: str, groups: dict[str, set[str]]) -> None:
                     eps = meta.get('entrypoints', {}).get('main', [])
                     check(eps == ['net.volyera.fabric.VolyeraFabric'],
                           '%s: entrypoint is %s' % (name, eps))
-                    check('fabric-api' not in json.dumps(meta.get('depends', {})),
-                          '%s: does not depend on Fabric API' % name)
+                    # The opposite of what this used to assert. Fabric Loader has
+                    # no pack-repository code; fabric-resource-loader-v1 is what
+                    # makes the game read this jar's data/volyera/enchantment.
+                    deps = meta.get('depends', {})
+                    check('fabric-resource-loader-v1' in deps,
+                          '%s: depends on fabric-resource-loader-v1 so its data is loaded (%s)'
+                          % (name, sorted(deps)))
                 except Exception as exc:  # noqa: BLE001
                     check(False, '%s: fabric.mod.json parses (%s)' % (name, exc))
             check('net/volyera/fabric/VolyeraFabric.class' in entries,

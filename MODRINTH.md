@@ -7,9 +7,9 @@ short summary field; the **Description** is the Markdown body.
 
 ## Summary (short field, ≤ 256 characters)
 
-> 20 new armour enchantments for Minecraft 26.2 — elemental wards, mobility boons and two real curses. Fully data-driven, so the Fabric and NeoForge jars ship identical content. No Fabric API required.
+> 20 new armour enchantments for Minecraft 26.2 — elemental wards, mobility boons and two real curses. Fully data-driven, so the Fabric and NeoForge jars ship identical content. Fabric needs Fabric API.
 
-*(233 characters)*
+*(200 characters)*
 
 ---
 
@@ -21,8 +21,9 @@ utility upgrades, and two curses worth being afraid of.
 
 Every one of them is **data-driven**: Volyera defines its enchantments with vanilla's own enchantment
 effect components rather than custom code. That is why the Fabric and NeoForge jars behave
-identically, why pack makers can retune any number with a datapack, and why **Fabric API is not
-required**.
+identically, and why pack makers can retune any number with a datapack. On Fabric it still needs
+**Fabric API**, because Fabric API's resource-loader module is what makes the game read a mod's
+`data/` folder at all; NeoForge does that natively and needs nothing extra.
 
 <br>
 
@@ -120,7 +121,7 @@ Everything else stacks.
 | **Loaders** | Fabric · NeoForge |
 | **Fabric Loader** | 0.19.5+ |
 | **NeoForge** | 26.2.0.87+ |
-| **Fabric API** | **Not required** |
+| **Fabric API** | **Required on Fabric** (`fabric-resource-loader-v1`, part of Fabric API 0.160.0+) — not needed on NeoForge |
 
 Install the jar for your loader into your `mods` folder. Works on dedicated servers — put it on
 both sides so names and tooltips resolve correctly.
@@ -164,9 +165,15 @@ vanilla 26.2 actually defines, so nothing here relies on undocumented or removed
 
 ### Dependencies
 
-None. Declare **no** required dependencies — in particular do *not* list Fabric API, since Volyera
-does not use it. An optional *incompatible*-free listing is fine; consider suggesting
-**Enchantment Descriptions** as an optional companion because Volyera ships `.desc` keys for it.
+On the **Fabric** file, declare **Fabric API** as a *required* dependency. Volyera uses none of its
+APIs — it needs only `fabric-resource-loader-v1`, the module that registers a mod's `data/` folder
+with the game's pack repository, without which the enchantments are never loaded. Modrinth resolves
+that module to the Fabric API project, so list Fabric API itself.
+
+On the **NeoForge** file, declare **no** dependencies: NeoForge loads mod data natively.
+
+Consider suggesting **Enchantment Descriptions** as an optional companion, since Volyera ships
+`.desc` keys for it.
 
 ### Version files
 
