@@ -1,0 +1,44 @@
+// Fabric module. Mirrors the official Fabric example mod for Minecraft 26.2.
+//
+// Two things differ from pre-26.1 Fabric mods, because 26.2 ships unobfuscated:
+//   * there is no `mappings` dependency at all - Mojang's names are the real names
+//   * the plugin id is `net.fabricmc.fabric-loom` (the non-remapping Loom), and
+//     dependencies use plain `implementation` instead of `modImplementation`
+//
+// Volyera's content is data-driven, so Fabric API is not required: the loader
+// exposes this jar's `data/` folder as a built-in datapack on its own.
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+loom {
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+}
+
+processResources {
+    def v = project.version
+    inputs.property 'version', v
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': v
+    }
+}
+
+java {
+    withSourcesJar()
+}
+
+jar {
+    from(rootProject.file('LICENSE')) {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}

@@ -1,0 +1,65 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.curse_of_frailty"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": -1.0,
+          "per_level_above_first": -1.0,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:armor_toughness",
+        "id": "volyera:enchantment.curse_of_frailty",
+        "operation": "add_value"
+      }
+    ],
+    "minecraft:tick": [
+      {
+        "effect": {
+          "amount": 1.0,
+          "type": "minecraft:change_item_damage"
+        },
+        "requirements": {
+          "condition": "minecraft:all_of",
+          "terms": [
+            {
+              "condition": "minecraft:entity_properties",
+              "entity": "this",
+              "predicate": {
+                "minecraft:periodic_tick": 40
+              }
+            },
+            {
+              "chance": {
+                "amount": {
+                  "base": 0.5,
+                  "per_level_above_first": 0.0,
+                  "type": "minecraft:linear"
+                },
+                "type": "minecraft:enchantment_level"
+              },
+              "condition": "minecraft:random_chance"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 25,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/equippable",
+  "weight": 1
+}

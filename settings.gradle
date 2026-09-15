@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        maven {
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases'
+        }
+        mavenCentral()
+    }
+}
+
+plugins {
+    // Lets Gradle auto-provision the Java 25 toolchain Minecraft 26.2 needs.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'Volyera'
+
+// Two loader modules. The loader-agnostic sources and all of the mod's data
+// live in `common/`, which is *not* a Gradle project: both modules compile and
+// package it directly (see the root build.gradle). Because Minecraft 26.2 ships
+// unobfuscated, the same sources and the same enchantment JSON are valid for
+// both loaders with no remapping step.
+include 'fabric'
+include 'neoforge'

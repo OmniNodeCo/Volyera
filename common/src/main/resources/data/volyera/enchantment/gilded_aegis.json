@@ -1,0 +1,48 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.gilded_aegis"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": 2.0,
+        "attribute": "minecraft:armor_toughness",
+        "id": "volyera:enchantment.gilded_aegis",
+        "operation": "add_value"
+      },
+      {
+        "amount": 0.25,
+        "attribute": "minecraft:knockback_resistance",
+        "id": "volyera:enchantment.gilded_aegis",
+        "operation": "add_value"
+      },
+      {
+        "amount": 2.0,
+        "attribute": "minecraft:max_health",
+        "id": "volyera:enchantment.gilded_aegis",
+        "operation": "add_value"
+      },
+      {
+        "amount": 2.0,
+        "attribute": "minecraft:luck",
+        "id": "volyera:enchantment.gilded_aegis",
+        "operation": "add_value"
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 25,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 1
+}

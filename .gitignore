@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+out/
+
+# Minecraft / loader run directories created by `runClient` and `runServer`
+run/
+*/run/
+logs/
+
+# Datagen output caches
+*/src/generated/resources/.cache/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Python (the enchantment authoring tool)
+__pycache__/
+*.pyc

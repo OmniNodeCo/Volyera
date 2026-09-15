@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "volyera",
+  "version": "${version}",
+  "name": "Volyera",
+  "description": "Adds a set of data-driven armour enchantments - elemental wards, mobility boons and two curses - for Minecraft 26.2 on Fabric and NeoForge.",
+  "authors": [
+    "Volyera contributors"
+  ],
+  "contact": {
+    "sources": "https://github.com/OmniNodeCo/Volyera",
+    "issues": "https://github.com/OmniNodeCo/Volyera/issues"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.volyera.fabric.VolyeraFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25"
+  }
+}

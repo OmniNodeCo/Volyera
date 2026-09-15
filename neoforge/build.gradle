@@ -1,0 +1,69 @@
+// NeoForge module. Mirrors the official MDK for Minecraft 26.2
+// (NeoForgeMDKs/MDK-26.2-ModDevGradle).
+//
+// There is no Parchment block: Minecraft has shipped parameter names in the
+// jar since 26.1, so there is nothing left for Parchment to add.
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version "${moddev_version}"
+    id 'idea'
+}
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+// META-INF/neoforge.mods.toml is kept as a template so the version strings in
+// it always agree with gradle.properties.
+var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description,
+            mod_sources            : mod_sources,
+            mod_issues             : mod_issues,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+// IDEA no longer downloads sources/javadoc for dependencies automatically.
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

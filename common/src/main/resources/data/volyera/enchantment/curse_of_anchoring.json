@@ -1,0 +1,55 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.curse_of_anchoring"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": -0.05,
+          "per_level_above_first": -0.05,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:movement_speed",
+        "id": "volyera:enchantment.curse_of_anchoring",
+        "operation": "add_multiplied_total"
+      },
+      {
+        "amount": {
+          "base": 0.02,
+          "per_level_above_first": 0.02,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:gravity",
+        "id": "volyera:enchantment.curse_of_anchoring",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": -0.2,
+          "per_level_above_first": -0.2,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:step_height",
+        "id": "volyera:enchantment.curse_of_anchoring",
+        "operation": "add_value"
+      }
+    ],
+    "minecraft:prevent_armor_change": {}
+  },
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 0
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 25,
+    "per_level_above_first": 0
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/equippable",
+  "weight": 1
+}

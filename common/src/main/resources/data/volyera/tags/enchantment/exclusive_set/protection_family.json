@@ -1,0 +1,10 @@
+{
+  "values": [
+    "volyera:warding",
+    "volyera:emberheart",
+    "minecraft:protection",
+    "minecraft:fire_protection",
+    "minecraft:blast_protection",
+    "minecraft:projectile_protection"
+  ]
+}

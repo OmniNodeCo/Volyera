@@ -1,0 +1,88 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "translate": "enchantment.volyera.stormwarden"
+  },
+  "effects": {
+    "minecraft:damage_immunity": [
+      {
+        "effect": {},
+        "requirements": {
+          "condition": "minecraft:damage_source_properties",
+          "predicate": {
+            "tags": [
+              {
+                "expected": true,
+                "id": "minecraft:is_lightning"
+              },
+              {
+                "expected": false,
+                "id": "minecraft:bypasses_invulnerability"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "minecraft:damage_protection": [
+      {
+        "effect": {
+          "type": "minecraft:add",
+          "value": {
+            "base": 4.0,
+            "per_level_above_first": 4.0,
+            "type": "minecraft:linear"
+          }
+        },
+        "requirements": {
+          "condition": "minecraft:damage_source_properties",
+          "predicate": {
+            "tags": [
+              {
+                "expected": true,
+                "id": "minecraft:is_lightning"
+              },
+              {
+                "expected": false,
+                "id": "minecraft:bypasses_invulnerability"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "minecraft:location_changed": [
+      {
+        "effect": {
+          "amount": {
+            "base": 0.1,
+            "per_level_above_first": 0.1,
+            "type": "minecraft:linear"
+          },
+          "attribute": "minecraft:movement_speed",
+          "id": "volyera:enchantment.stormwarden",
+          "operation": "add_multiplied_total",
+          "type": "minecraft:attribute"
+        },
+        "requirements": {
+          "condition": "minecraft:weather_check",
+          "thundering": true
+        }
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 32,
+    "per_level_above_first": 10
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 12,
+    "per_level_above_first": 10
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 1
+}

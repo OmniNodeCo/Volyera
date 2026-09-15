@@ -1,0 +1,59 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.thornmail"
+  },
+  "effects": {
+    "minecraft:post_attack": [
+      {
+        "affected": "attacker",
+        "effect": {
+          "effects": [
+            {
+              "damage_type": "minecraft:thorns",
+              "max_damage": {
+                "base": 3.0,
+                "per_level_above_first": 1.5,
+                "type": "minecraft:linear"
+              },
+              "min_damage": 1.0,
+              "type": "minecraft:damage_entity"
+            },
+            {
+              "amount": 2.0,
+              "type": "minecraft:change_item_damage"
+            }
+          ],
+          "type": "minecraft:all_of"
+        },
+        "enchanted": "victim",
+        "requirements": {
+          "chance": {
+            "amount": {
+              "base": 0.2,
+              "per_level_above_first": 0.1,
+              "type": "minecraft:linear"
+            },
+            "type": "minecraft:enchantment_level"
+          },
+          "condition": "minecraft:random_chance"
+        }
+      }
+    ]
+  },
+  "exclusive_set": "#volyera:exclusive_set/retaliation",
+  "max_cost": {
+    "base": 50,
+    "per_level_above_first": 20
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 10,
+    "per_level_above_first": 20
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 2
+}

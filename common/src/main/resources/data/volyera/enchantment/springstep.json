@@ -1,0 +1,55 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "translate": "enchantment.volyera.springstep"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 0.25,
+          "per_level_above_first": 0.25,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:bounciness",
+        "id": "volyera:enchantment.springstep",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 0.2,
+          "per_level_above_first": 0.2,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:step_height",
+        "id": "volyera:enchantment.springstep",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 0.04,
+          "per_level_above_first": 0.04,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:jump_strength",
+        "id": "volyera:enchantment.springstep",
+        "operation": "add_value"
+      }
+    ]
+  },
+  "exclusive_set": "#volyera:exclusive_set/descent",
+  "max_cost": {
+    "base": 30,
+    "per_level_above_first": 10
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 10,
+    "per_level_above_first": 10
+  },
+  "slots": [
+    "feet"
+  ],
+  "supported_items": "#minecraft:enchantable/foot_armor",
+  "weight": 2
+}

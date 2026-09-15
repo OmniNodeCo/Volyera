@@ -1,0 +1,47 @@
+// Shared configuration for both loader modules.
+//
+// Each module applies its own loader plugin (Fabric Loom or ModDevGradle), and
+// both of those apply Gradle's `java` plugin. `plugins.withId` defers this
+// block until that has happened, so nothing here races the loader plugins.
+
+def mcVersion = String.valueOf(minecraft_version)
+def javaVersion = Integer.parseInt(String.valueOf(java_version))
+def sharedJava = rootProject.file('common/src/main/java')
+def sharedResources = rootProject.file('common/src/main/resources')
+
+subprojects {
+    plugins.withId('java') {
+        group = String.valueOf(rootProject.mod_group)
+        version = String.valueOf(rootProject.mod_version)
+
+        // Minecraft 26.2 requires Java 25.
+        java.toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+
+        // Volyera's content is data-driven, so the loader-agnostic part is the
+        // bulk of the mod: all enchantment JSON, tags and translations, plus a
+        // few constants both entrypoints share. Compiling it into each module
+        // (rather than shipping a nested jar) keeps both jars self-contained
+        // and avoids any jar-in-jar handling on either loader.
+        sourceSets.main.java.srcDirs += sharedJava
+        sourceSets.main.resources.srcDirs += sharedResources
+
+        tasks.withType(JavaCompile).configureEach {
+            options.encoding = 'UTF-8'
+            options.release = javaVersion
+        }
+
+        tasks.withType(ProcessResources).configureEach {
+            // The shared resources contain no ${} placeholders and are never
+            // expanded: Fabric expands only fabric.mod.json, and NeoForge expands
+            // only src/main/templates in its own generateModMetadata task.
+            // EXCLUDE is a safety net in case a module ever shadows a shared path.
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+
+        // Keep the loader name in the artifact so both jars can sit in one
+        // mods folder or be uploaded side by side.
+        plugins.withId('base') {
+            base.archivesName = "${rootProject.mod_id}-${project.name}-${mcVersion}"
+        }
+    }
+}
