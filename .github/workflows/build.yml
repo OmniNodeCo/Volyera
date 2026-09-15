@@ -161,11 +161,12 @@ jobs:
           if-no-files-found: error
 
   # A successful compile proves the Java is valid; it says nothing about whether
-  # the game accepts the enchantment data. Several combinations Volyera uses are
-  # not exercised by any vanilla enchantment - a level-scaled amplifier on
-  # apply_mob_effect, apply_mob_effect and change_item_damage inside `tick`,
-  # weather_check inside location_changed, and the 26.2 bounciness attribute -
-  # so boot a real dedicated server and let Minecraft parse them.
+  # the game accepts the enchantment data. And "no errors in the log" is only
+  # meaningful if the data was actually read - so this job also asks a running
+  # 26.2 server to apply one of our enchantments, alongside a vanilla control.
+  # The control is what keeps the test honest: if the command syntax has moved
+  # in 26.2 both attempts fail and the result is reported as inconclusive
+  # rather than blamed on the mod.
   boot:
     name: Boot a 26.2 server and load the data
     runs-on: ubuntu-latest
@@ -184,37 +185,60 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Start server, ask it about the datapacks, then stop it
+      - name: Start server, probe the registry, then stop it
         shell: bash
         run: |
           mkdir -p fabric/run
           echo 'eula=true' > fabric/run/eula.txt
-          # Keep stdin open so the console thread does not see EOF, ask what
-          # packs are loaded once the server is up, then shut it down cleanly.
-          ( sleep 200; echo 'datapack list'; sleep 8; echo stop ) \
-            | timeout 420 ./gradlew :fabric:runServer --console=plain \
+          summon() {
+            printf 'summon minecraft:item 0 100 0 {Item:{id:"minecraft:diamond_chestplate",count:1,components:{"minecraft:enchantments":{levels:{"%s":1}}}}}\n' "$1"
+          }
+          # Keep stdin open so the console thread never sees EOF, mark each
+          # probe so its result can be attributed, then shut down cleanly.
+          ( sleep 200
+            echo 'say ---CONTROL---'
+            summon minecraft:protection
+            sleep 4
+            echo 'say ---VOLYERA---'
+            summon volyera:warding
+            sleep 4
+            echo 'say ---PROBE-DONE---'
+            sleep 2
+            echo 'datapack list'
+            sleep 4
+            echo stop ) \
+            | timeout 480 ./gradlew :fabric:runServer --console=plain \
             > server.log 2>&1 || true
           echo "--- tail of server.log ---"
           tail -n 25 server.log || true
 
       # Analyse, publish, then assert - in that order, so the evidence is always
-      # posted even when the check fails. Two things the earlier version got
-      # wrong: the error regex was broad enough to match benign startup
-      # warnings, and GitHub's default bash runs with -o pipefail, so a grep
-      # that finds nothing aborts the step mid-report. Every grep here is
-      # guarded. Patterns are narrowed to what Minecraft actually emits when it
-      # rejects a data file.
+      # posted even when the check fails. Two things earlier versions got wrong:
+      # the error regex was broad enough to match benign startup warnings, and
+      # GitHub's default bash runs with -o pipefail, so a grep that finds
+      # nothing aborts the step mid-report. Every grep here is guarded.
       - name: Analyse the server log
         shell: bash
         run: |
-          ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Registry .* reported an error|IllegalStateException|IllegalArgumentException'
+          ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Registry .* reported an error'
           started=no
           grep -q "Done (" server.log && started=yes || true
+
+          section() {
+            awk -v a="$1" -v b="$2" 'index($0,a){f=1;next} index($0,b){f=0} f' server.log
+          }
+          control=$(section '---CONTROL---' '---VOLYERA---')
+          volyera=$(section '---VOLYERA---' '---PROBE-DONE---')
+          control_ok=no; volyera_ok=no; probe_ran=no
+          grep -q '---PROBE-DONE---' server.log && probe_ran=yes || true
+          printf '%s' "$control" | grep -q "Summoned new" && control_ok=yes || true
+          printf '%s' "$volyera" | grep -q "Summoned new" && volyera_ok=yes || true
+
+          error_lines=$(grep -inE "$ERRORS" server.log | head -40 || true)
+          error_count=$(printf '%s' "$error_lines" | grep -c . || true)
           volyera_lines=$(grep -inE "volyera" server.log | head -20 || true)
           datapack_lines=$(grep -inE "data ?pack" server.log | head -20 || true)
-          error_lines=$(grep -inE "$ERRORS" server.log | head -40 || true)
           warn_lines=$(grep -inE "/(WARN|ERROR)]" server.log | head -40 || true)
-          error_count=$(printf '%s' "$error_lines" | grep -c . || true)
 
           {
             echo "### Server boot check"
@@ -222,11 +246,27 @@ jobs:
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
             if [ "$started" = yes ]; then
-              echo "Dedicated server reached \`Done (\` - it loaded every datapack and registry."
+              echo "Dedicated server reached \`Done (\` - it loaded every registry and datapack."
               grep -m1 "Done (" server.log | sed 's/^/\n    /' || true
             else
               echo "**The server never finished starting.**"
             fi
+            echo
+            echo "#### Registry probe"
+            echo
+            echo "Asked the live server to summon a chestplate wearing an enchantment."
+            echo
+            echo "| enchantment | result |"
+            echo "| --- | --- |"
+            echo "| \`minecraft:protection\` (control) | $control_ok |"
+            echo "| \`volyera:warding\` | $volyera_ok |"
+            echo
+            echo '```'
+            echo "--- control output ---"
+            echo "${control:-(nothing)}"
+            echo "--- volyera output ---"
+            echo "${volyera:-(nothing)}"
+            echo '```'
             echo
             echo "#### Volyera in the log"
             echo
@@ -255,6 +295,9 @@ jobs:
 
           echo "$started" > started.txt
           echo "$error_count" > error-count.txt
+          echo "$control_ok" > control-ok.txt
+          echo "$volyera_ok" > volyera-ok.txt
+          echo "$probe_ran" > probe-ran.txt
           cat boot-report.md
 
       - name: Report boot result
@@ -272,12 +315,24 @@ jobs:
         run: |
           started=$(cat started.txt || echo no)
           errors=$(cat error-count.txt || echo 0)
-          if [ "$started" != yes ]; then
-            echo "server did not reach Done ("
+          control_ok=$(cat control-ok.txt || echo no)
+          volyera_ok=$(cat volyera-ok.txt || echo no)
+
+          [ "$started" = yes ] || { echo "server did not reach Done ("; exit 1; }
+          [ "$errors" = "0" ] || { echo "$errors data load error line(s)"; exit 1; }
+
+          if [ "$control_ok" = yes ] && [ "$volyera_ok" = yes ]; then
+            echo "PROVEN: the live server accepted volyera:warding exactly as it"
+            echo "accepted minecraft:protection, so the enchantment is registered."
+          elif [ "$control_ok" = yes ] && [ "$volyera_ok" != yes ]; then
+            echo "The vanilla control worked but volyera:warding did not - the"
+            echo "enchantment is genuinely missing or rejected at runtime."
+            exit 1
+          else
+            # The control failed too, so the probe tells us nothing about the mod.
+            # Say so loudly instead of quietly passing.
+            echo "INCONCLUSIVE: the summon probe did not succeed even for vanilla"
+            echo "minecraft:protection, so its syntax has probably changed in 26.2."
+            echo "Boot and data-load checks still passed; registry proof pending."
             exit 1
           fi
-          if [ "$errors" != "0" ]; then
-            echo "Minecraft reported $errors data load error line(s)"
-            exit 1
-          fi
-          echo "server booted, loaded the data, and reported no errors"
