@@ -184,34 +184,46 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Start server, let it load, then stop it
+      - name: Start server, ask it about the datapacks, then stop it
         shell: bash
         run: |
           mkdir -p fabric/run
           echo 'eula=true' > fabric/run/eula.txt
-          # Keep stdin open so the server console does not see EOF, then ask it
-          # to stop once it has had time to finish loading.
-          ( sleep 240; echo stop ) | timeout 420 \
-            ./gradlew :fabric:runServer --console=plain > server.log 2>&1 || true
-          echo "--- last 40 lines ---"
-          tail -n 40 server.log
+          # Keep stdin open so the console thread does not see EOF, ask what
+          # packs are loaded once the server is up, then shut it down cleanly.
+          ( sleep 200; echo 'datapack list'; sleep 8; echo stop ) \
+            | timeout 420 ./gradlew :fabric:runServer --console=plain \
+            > server.log 2>&1 || true
+          echo "--- tail of server.log ---"
+          tail -n 25 server.log || true
 
       # Analyse, publish, then assert - in that order, so the evidence is always
-      # posted even when the check fails. Patterns are kept narrow: a broad
-      # regex over a whole server log matches benign startup warnings and fails
-      # the build for no reason.
+      # posted even when the check fails. Two things the earlier version got
+      # wrong: the error regex was broad enough to match benign startup
+      # warnings, and GitHub's default bash runs with -o pipefail, so a grep
+      # that finds nothing aborts the step mid-report. Every grep here is
+      # guarded. Patterns are narrowed to what Minecraft actually emits when it
+      # rejects a data file.
       - name: Analyse the server log
         shell: bash
         run: |
-          ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Invalid enchantment|could not be loaded|Registry .* reported an error'
+          ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Registry .* reported an error|IllegalStateException|IllegalArgumentException'
+          started=no
+          grep -q "Done (" server.log && started=yes || true
+          volyera_lines=$(grep -inE "volyera" server.log | head -20 || true)
+          datapack_lines=$(grep -inE "data ?pack" server.log | head -20 || true)
+          error_lines=$(grep -inE "$ERRORS" server.log | head -40 || true)
+          warn_lines=$(grep -inE "/(WARN|ERROR)]" server.log | head -40 || true)
+          error_count=$(printf '%s' "$error_lines" | grep -c . || true)
+
           {
             echo "### Server boot check"
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
-            if grep -q "Done (" server.log; then
-              echo "Dedicated server reached \`Done (\` - it fully loaded every datapack."
-              grep -m1 "Done (" server.log | sed 's/^/\n    /'
+            if [ "$started" = yes ]; then
+              echo "Dedicated server reached \`Done (\` - it loaded every datapack and registry."
+              grep -m1 "Done (" server.log | sed 's/^/\n    /' || true
             else
               echo "**The server never finished starting.**"
             fi
@@ -219,23 +231,30 @@ jobs:
             echo "#### Volyera in the log"
             echo
             echo '```'
-            m=$(grep -inE "volyera" server.log | head -20); [ -n "$m" ] && echo "$m" || echo "(no mentions)"
+            echo "${volyera_lines:-(no mentions)}"
             echo '```'
             echo
-            echo "#### Data load errors"
+            echo "#### Datapack report"
             echo
             echo '```'
-            m=$(grep -inE "$ERRORS" server.log | head -40); [ -n "$m" ] && echo "$m" || echo "(none)"
+            echo "${datapack_lines:-(nothing logged)}"
             echo '```'
             echo
-            echo "#### All warnings and errors"
+            echo "#### Data load errors (count: $error_count)"
             echo
             echo '```'
-            m=$(grep -inE "/(WARN|ERROR)\]" server.log | head -40); [ -n "$m" ] && echo "$m" || echo "(none)"
+            echo "${error_lines:-(none)}"
+            echo '```'
+            echo
+            echo "#### Warnings and errors in the log"
+            echo
+            echo '```'
+            echo "${warn_lines:-(none)}"
             echo '```'
           } > boot-report.md
-          grep -cE "$ERRORS" server.log > error-count.txt || true
-          grep -q "Done (" server.log > /dev/null; echo $? > started-status.txt
+
+          echo "$started" > started.txt
+          echo "$error_count" > error-count.txt
           cat boot-report.md
 
       - name: Report boot result
@@ -251,15 +270,14 @@ jobs:
       - name: Fail if the data did not load
         shell: bash
         run: |
-          status=0
-          if [ "$(cat started-status.txt 2>/dev/null)" != "0" ]; then
-            echo "server did not reach Done ("; status=1
+          started=$(cat started.txt || echo no)
+          errors=$(cat error-count.txt || echo 0)
+          if [ "$started" != yes ]; then
+            echo "server did not reach Done ("
+            exit 1
           fi
-          if [ "$(cat error-count.txt 2>/dev/null || echo 0)" != "0" ]; then
-            echo "Minecraft reported $(cat error-count.txt) data load error line(s)"; status=1
+          if [ "$errors" != "0" ]; then
+            echo "Minecraft reported $errors data load error line(s)"
+            exit 1
           fi
-          if [ "$status" = "0" ]; then
-            echo "server booted and loaded all Volyera data with no errors"
-          fi
-          exit $status
-
+          echo "server booted, loaded the data, and reported no errors"
