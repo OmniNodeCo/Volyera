@@ -218,26 +218,55 @@ jobs:
             esac
           }
 
-          # Keep stdin open so the console thread never sees EOF. `say` markers
-          # let each probe's output be attributed to its own syntax variant.
-          ( sleep 200
+          # The probe has to be typed into the *server's* console. Waiting a
+          # fixed number of seconds does not work: NeoForge spends several
+          # minutes downloading 137 artifacts before the JVM even exists, so an
+          # earlier version fed every command to Gradle's stdin and the probe
+          # silently measured nothing. Drive it from a FIFO instead and wait for
+          # the log to say the server is up.
+          mkfifo console.fifo
+          # Read-write so the open does not block, and so the server's console
+          # thread never sees EOF while we are still deciding what to send.
+          exec 3<>console.fifo
+
+          timeout 900 ./gradlew ":${{ matrix.loader }}:runServer" --console=plain \
+            < console.fifo > server.log 2>&1 &
+          gradle_pid=$!
+
+          ready=no
+          for _ in $(seq 1 180); do
+            if grep -q "Done (" server.log 2>/dev/null; then ready=yes; break; fi
+            if ! kill -0 "$gradle_pid" 2>/dev/null; then break; fi
+            sleep 5
+          done
+          echo "server reached Done(: $ready"
+
+          if [ "$ready" = yes ]; then
             for v in flat wrapped byte; do
-              echo "say ---START-$v-CONTROL---"
-              summon_cmd "ctrl_$v" "minecraft:protection" "$v"
+              echo "say ---START-$v-CONTROL---" >&3
+              summon_cmd "ctrl_$v" "minecraft:protection" "$v" >&3
               sleep 3
-              echo "say ---START-$v-VOLYERA---"
-              summon_cmd "vol_$v" "volyera:warding" "$v"
+              echo "say ---START-$v-VOLYERA---" >&3
+              summon_cmd "vol_$v" "volyera:warding" "$v" >&3
               sleep 3
-              echo "say ---END-$v---"
+              echo "say ---END-$v---" >&3
               sleep 1
             done
-            echo 'say ---PROBE-DONE---'
+            echo 'say ---PROBE-DONE---' >&3
             sleep 2
-            echo 'datapack list'
-            sleep 4
-            echo stop ) \
-            | timeout 560 ./gradlew ":${{ matrix.loader }}:runServer" --console=plain \
-            > server.log 2>&1 || true
+            echo 'datapack list' >&3
+            sleep 5
+            echo stop >&3
+          fi
+
+          # Give it time to shut down on its own, then stop waiting on it.
+          for _ in $(seq 1 24); do
+            kill -0 "$gradle_pid" 2>/dev/null || break
+            sleep 5
+          done
+          kill "$gradle_pid" 2>/dev/null || true
+          wait "$gradle_pid" 2>/dev/null || true
+          exec 3>&- || true
           echo "--- tail of server.log ---"
           tail -n 20 server.log || true
 
@@ -290,6 +319,7 @@ jobs:
           mod_lines=$(grep -nE "^[[:space:]]*-[[:space:]]+[a-z]" server.log | head -40 || true)
           loader_lines=$(grep -inE "volyera|resource-loader|resource_loader" server.log | head -25 || true)
           datapack_lines=$(grep -inE "data ?pack" server.log | head -20 || true)
+          registry_lines=$(grep -oE "volyera:[a-z_]+" server.log | sort -u | head -30 || true)
           warn_lines=$(grep -inE "/(WARN|ERROR)]" server.log | head -40 || true)
 
           {
@@ -344,6 +374,12 @@ jobs:
             echo '```'
             echo
             echo "</details>"
+            echo
+            echo "#### Volyera ids seen anywhere in the log"
+            echo
+            echo '```'
+            echo "${registry_lines:-(none)}"
+            echo '```'
             echo
             echo "#### Datapack report"
             echo
