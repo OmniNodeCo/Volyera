@@ -138,10 +138,15 @@ for line in open(os.path.join(ROOT, 'gradle.properties')):
         k, v = line.split('=', 1)
         props[k.strip()] = v.strip()
 toml = open(os.path.join(ROOT, 'neoforge/src/main/templates/META-INF/neoforge.mods.toml')).read()
-need = set(re.findall(r'\$\{(\w+)\}', toml))
+# Match ANY dollar-brace, not just well-formed ones. Gradle expands this file with
+# Groovy's SimpleTemplateEngine, so a literal ${...} - even inside a TOML comment -
+# is parsed as an expression and fails the build with an opaque template error.
+# A \w+ pattern would quietly skip exactly the malformed cases that break.
+need = set(re.findall(r'\$\{([^}]*)\}', toml))
 missing = need - set(props)
 if missing:
-    fail.append('neoforge.mods.toml placeholders not in gradle.properties: %s' % sorted(missing))
+    fail.append('neoforge.mods.toml has dollar-brace text that is not a gradle.properties '
+                'key (Groovy will try to evaluate it): %s' % sorted(missing))
 print('toml placeholders: %s' % sorted(need))
 fj = open(os.path.join(ROOT, 'fabric/src/main/resources/fabric.mod.json')).read()
 print('fabric.mod.json placeholders: %s' % sorted(set(re.findall(r'\$\{(\w+)\}', fj))))

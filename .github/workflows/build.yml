@@ -55,7 +55,7 @@ jobs:
           run_stage() {
             local name="$1"; shift
             echo "::group::$name"
-            if "$@" 2>&1 | tee "build-$name.log"; then
+            if "$@" --console=plain 2>&1 | tee "build-$name.log"; then
               echo "STAGE $name: OK" | tee -a build-status.txt
             else
               echo "STAGE $name: FAILED" | tee -a build-status.txt
@@ -65,7 +65,7 @@ jobs:
           }
           : > build-status.txt
           run_stage versions ./gradlew --version
-          run_stage projects ./gradlew projects --stacktrace
+          run_stage projects ./gradlew projects
           run_stage neoforge ./gradlew :neoforge:build --stacktrace
           run_stage fabric   ./gradlew :fabric:build --stacktrace
           cat build-status.txt
@@ -74,6 +74,10 @@ jobs:
       # Action log downloads are served from blob storage, which is not always
       # reachable from every environment. Mirroring the failure into a commit
       # comment keeps it retrievable through the plain REST API.
+      #
+      # With --stacktrace Gradle prints "What went wrong" first and then hundreds
+      # of frames, so a plain tail only shows the stack. Extract the parts that
+      # actually diagnose the problem instead.
       - name: Report failure
         if: failure()
         env:
@@ -91,10 +95,20 @@ jobs:
             for f in build-*.log; do
               [ -f "$f" ] || continue
               echo
-              echo "#### \`$f\` (tail)"
+              echo "#### \`$f\`"
               echo
               echo '```'
-              tail -n 100 "$f"
+              if grep -q "FAILURE: Build failed" "$f"; then
+                sed -n '/FAILURE: Build failed/,/^\* Try:/p' "$f" | head -50
+                echo "--- caused by ---"
+                grep -h "Caused by" "$f" | head -8
+                echo "--- compiler diagnostics ---"
+                grep -hE "\.java:[0-9]+: (error|warning):|^e: |error: " "$f" | head -30
+                echo "--- failed task ---"
+                grep -hE "^> Task .* FAILED|Execution failed for task" "$f" | head -5
+              else
+                tail -n 40 "$f"
+              fi
               echo '```'
             done
           } > /tmp/report.md

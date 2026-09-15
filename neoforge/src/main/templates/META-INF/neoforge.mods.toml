@@ -1,7 +1,12 @@
-# This file is a template. `generateModMetadata` in neoforge/build.gradle expands
-# every ${...} below from gradle.properties and writes the result to
-# build/generated/sources/modMetadata, which is added to the resources source set.
-# Edit gradle.properties to change any of these values - do not hardcode them here.
+# This file is a template, not the shipped metadata. The generateModMetadata task
+# in neoforge/build.gradle expands the placeholders below from gradle.properties
+# and writes the result to build/generated/sources/modMetadata, which is added to
+# the resources source set.
+#
+# Because expansion uses Groovy's SimpleTemplateEngine, a literal dollar-brace
+# anywhere in this file - even inside a comment - is parsed as an expression and
+# breaks the build. Every placeholder here must name a key that build.gradle puts
+# in replaceProperties. To change a value, edit gradle.properties.
 
 modLoader = "javafml"
 license = "${mod_license}"
