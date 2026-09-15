@@ -196,26 +196,47 @@ jobs:
           echo "--- last 40 lines ---"
           tail -n 40 server.log
 
-      - name: Check what the server said about Volyera
+      # Analyse, publish, then assert - in that order, so the evidence is always
+      # posted even when the check fails. Patterns are kept narrow: a broad
+      # regex over a whole server log matches benign startup warnings and fails
+      # the build for no reason.
+      - name: Analyse the server log
         shell: bash
         run: |
-          if ! grep -q "Done (" server.log; then
-            echo "server never finished starting; log follows"
-            tail -n 200 server.log
-            exit 1
-          fi
-          echo "server started cleanly"
-          echo
-          echo "--- mentions of volyera / enchantment ---"
-          grep -inE "volyera|enchantment" server.log | head -60 || true
-          echo
-          # Anything of this shape means Minecraft rejected one of our files.
-          if grep -qiE "failed to (load|parse)|couldn't (load|parse)|error while parsing|jsonsyntaxexception|invalid json|failed to parse|validation problem|missing required key|unknown .*(type|component|attribute|condition)|not a valid" server.log; then
-            echo "DATA LOAD PROBLEMS DETECTED:"
-            grep -inE "failed to (load|parse)|couldn't (load|parse)|error while parsing|jsonsyntaxexception|invalid json|failed to parse|validation problem|missing required key|unknown .*(type|component|attribute|condition)|not a valid" server.log | head -60
-            exit 1
-          fi
-          echo "no data load errors reported"
+          ERRORS='Failed to load data pack|Error while parsing|JsonSyntaxException|Failed to parse|Found validation problem|Missing required key|Unknown registry element|Invalid enchantment|could not be loaded|Registry .* reported an error'
+          {
+            echo "### Server boot check"
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            if grep -q "Done (" server.log; then
+              echo "Dedicated server reached \`Done (\` - it fully loaded every datapack."
+              grep -m1 "Done (" server.log | sed 's/^/\n    /'
+            else
+              echo "**The server never finished starting.**"
+            fi
+            echo
+            echo "#### Volyera in the log"
+            echo
+            echo '```'
+            m=$(grep -inE "volyera" server.log | head -20); [ -n "$m" ] && echo "$m" || echo "(no mentions)"
+            echo '```'
+            echo
+            echo "#### Data load errors"
+            echo
+            echo '```'
+            m=$(grep -inE "$ERRORS" server.log | head -40); [ -n "$m" ] && echo "$m" || echo "(none)"
+            echo '```'
+            echo
+            echo "#### All warnings and errors"
+            echo
+            echo '```'
+            m=$(grep -inE "/(WARN|ERROR)\]" server.log | head -40); [ -n "$m" ] && echo "$m" || echo "(none)"
+            echo '```'
+          } > boot-report.md
+          grep -cE "$ERRORS" server.log > error-count.txt || true
+          grep -q "Done (" server.log > /dev/null; echo $? > started-status.txt
+          cat boot-report.md
 
       - name: Report boot result
         if: ${{ !cancelled() }}
@@ -223,20 +244,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          {
-            echo "### Server boot check"
-            echo
-            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-            echo
-            if grep -q "Done (" server.log 2>/dev/null; then
-              echo "The dedicated server reached \`Done (\` and logged no data load errors."
-            else
-              echo "The server did **not** finish starting, or reported data load errors."
-            fi
-            echo
-            echo '```'
-            grep -inE "volyera|enchantment" server.log 2>/dev/null | head -50 || echo "(no mentions)"
-            echo '```'
-          } > /tmp/boot.md
           gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            -f body="$(cat /tmp/boot.md)" > /dev/null
+            -f body="$(cat boot-report.md)" > /dev/null
+          echo "Posted boot report"
+
+      - name: Fail if the data did not load
+        shell: bash
+        run: |
+          status=0
+          if [ "$(cat started-status.txt 2>/dev/null)" != "0" ]; then
+            echo "server did not reach Done ("; status=1
+          fi
+          if [ "$(cat error-count.txt 2>/dev/null || echo 0)" != "0" ]; then
+            echo "Minecraft reported $(cat error-count.txt) data load error line(s)"; status=1
+          fi
+          if [ "$status" = "0" ]; then
+            echo "server booted and loaded all Volyera data with no errors"
+          fi
+          exit $status
+
