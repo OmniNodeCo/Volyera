@@ -1,5 +1,7 @@
 # Volyera
 
+[![Build](https://github.com/OmniNodeCo/Volyera/actions/workflows/build.yml/badge.svg)](https://github.com/OmniNodeCo/Volyera/actions/workflows/build.yml)
+
 **A Minecraft 26.2 mod adding 20 armour enchantments — for Fabric *and* NeoForge from one codebase.**
 
 Volyera adds elemental wards, mobility boons, utility enchantments and two curses to every
@@ -179,6 +181,15 @@ and that is where the loader split finally earns its keep:
 
 ---
 
+## Publishing
+
+[`MODRINTH.md`](MODRINTH.md) holds a ready-to-paste Modrinth listing: the short summary, the full
+description body, and the recommended values for every listing field (categories, environment,
+loaders, game versions, dependencies). Both jars are content-identical, so one project with two
+loaders is enough — there is no Fabric API dependency to declare.
+
+---
+
 ## Verification status
 
 Be aware of exactly what has and has not been machine-checked here.
@@ -203,12 +214,31 @@ Be aware of exactly what has and has not been machine-checked here.
   `net.minecraft.world.item.enchantment.Enchantment`, `net.minecraft.core.registries.Registries`,
   `@Mod`, `ModInitializer`) was cross-checked against a shipping 26.2 multiloader mod.
 
-**Not verified:** the project has **not been compiled**. This workspace has no JDK and no access to
-the Gradle, NeoForged, Fabric or Mojang Maven repositories, so `./gradlew build` could not be run
-here. The first build on a machine with network access is the real check. The most likely places for
-a surprise are the two plugin versions (both move quickly — bump `neo_version` / `moddev_version` /
-`loom_version` / `fabric_loader_version` in `gradle.properties` if a resolution fails) and the
-shared-source-set wiring in the root `build.gradle`.
+**Verified by CI on GitHub Actions** (this workspace has no JDK and cannot reach the Gradle,
+NeoForged, Fabric or Mojang Maven repositories, so all of it was proven in CI):
+
+* **Both loaders compile and package.** `:fabric:build` under Loom 1.17.21 and `:neoforge:build`
+  under ModDevGradle 2.0.147 / NeoForge 26.2.0.87, on Gradle 9.5.1 with a Java 25 toolchain. The
+  version coordinates above are not guesses — they resolved and built.
+* **Both jars contain the right bytes.** `tools/verify_jars.py` runs against the finished artifacts
+  and asserts 36 conditions per pair: all 20 enchantment definitions and all 15 tag files are
+  present in *each* jar, every packaged enchantment JSON still parses and carries its required
+  fields, no class targets a JVM newer than Java 25 (class file major 69), nothing leaked across
+  loaders, and each loader's metadata is fully expanded with the right id, version and entrypoint.
+  Output is mirrored into a commit comment on every run.
+* **A real 26.2 server accepts the data.** CI boots a dedicated Minecraft 26.2 server, which loaded
+  every registry and datapack and reached `Done (5.3s)` with `volyera 1.0.0` in the mod list and
+  zero data load errors.
+
+**Still open:** the server boot proves the game did not *reject* the enchantment data, which is
+strong but not the same as proving each enchantment is registered and behaves. A console probe that
+asks a live server to put `volyera:warding` on an item — beside a `minecraft:protection` control,
+so an out-of-date SNBT syntax cannot masquerade as a result — is wired into CI, but its first
+attempt passed for the wrong reason: 26.2 rejects the `levels:` wrapper in the enchantments
+component, Minecraft logged the decode failure and summoned the item anyway. The corrected probe
+tries three syntaxes at once and only counts one whose vanilla control decodes cleanly. Check the
+latest run's "Server boot check" commit comment for where that landed. Client-side behaviour
+(tooltips, in-world effect application) has never been exercised.
 
 ---
 
