@@ -229,8 +229,11 @@ jobs:
           # thread never sees EOF while we are still deciding what to send.
           exec 3<>console.fifo
 
-          timeout 900 ./gradlew ":${{ matrix.loader }}:runServer" --console=plain \
-            < console.fifo > server.log 2>&1 &
+          # --no-daemon matters: a Gradle daemon has no client stdin, so the
+          # `standardInput = System.in` the NeoForge run task relies on would
+          # still be empty. In the foreground System.in is the FIFO below.
+          timeout 900 ./gradlew ":${{ matrix.loader }}:runServer" \
+            --console=plain --no-daemon < console.fifo > server.log 2>&1 &
           gradle_pid=$!
 
           ready=no
