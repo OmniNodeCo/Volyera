@@ -30,3 +30,7 @@ Thumbs.db
 # Python (the enchantment authoring tool)
 __pycache__/
 *.pyc
+
+# CI build logs (mirrored into commit comments on failure)
+build-*.log
+build-status.txt
