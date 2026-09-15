@@ -236,19 +236,33 @@ NeoForged, Fabric or Mojang Maven repositories, so all of it was proven in CI):
   fields, no class targets a JVM newer than Java 25 (class file major 69), nothing leaked across
   loaders, and each loader's metadata is fully expanded with the right id, version and entrypoint.
   Output is mirrored into a commit comment on every run.
-* **A real 26.2 server accepts the data.** CI boots a dedicated Minecraft 26.2 server, which loaded
-  every registry and datapack and reached `Done (5.3s)` with `volyera 1.0.0` in the mod list and
-  zero data load errors.
+* **A real 26.2 server accepts the data, and the enchantments are registered.** CI boots a
+  dedicated server for each loader and asks the live console to put `volyera:warding` on an item,
+  beside a `minecraft:protection` control so an out-of-date SNBT syntax cannot masquerade as a
+  result. Both loaders decode it cleanly, both reach `Done` with the mod loaded and zero data load
+  errors, and both report the mod's pack as enabled — `[volyera (Fabric mod)]` on Fabric,
+  `[mod_data]` on NeoForge. See the "Server boot check" comment on any recent commit.
 
-**Still open:** the server boot proves the game did not *reject* the enchantment data, which is
-strong but not the same as proving each enchantment is registered and behaves. A console probe that
-asks a live server to put `volyera:warding` on an item — beside a `minecraft:protection` control,
-so an out-of-date SNBT syntax cannot masquerade as a result — is wired into CI, but its first
-attempt passed for the wrong reason: 26.2 rejects the `levels:` wrapper in the enchantments
-component, Minecraft logged the decode failure and summoned the item anyway. The corrected probe
-tries three syntaxes at once and only counts one whose vanilla control decodes cleanly. Check the
-latest run's "Server boot check" commit comment for where that landed. Client-side behaviour
-(tooltips, in-world effect application) has never been exercised.
+Two things this caught that nothing else would have:
+
+* The `levels:` wrapper is **gone** from the `minecraft:enchantments` item component in 26.2. It is
+  now a flat map. Minecraft logs the decode failure and then summons the item anyway with the
+  enchantment silently dropped, so a check that only looked for a successful summon passed while
+  proving nothing. For commands and datapacks that means:
+
+  ```
+  /give @s diamond_chestplate[minecraft:enchantments={"volyera:warding":1}]
+  ```
+
+* On Fabric the data was not being read at all until `fabric-resource-loader-v1` was added — see
+  the requirements above. The jar was correct, the server booted cleanly, no error was logged, and
+  the enchantment registry was simply empty.
+
+**Not covered:** the probe exercises one enchantment (`warding`) for registry presence. The other
+19 load from the same pack and would have logged a parse or validation error had any of them been
+malformed, but their *effects* — the actual damage protection numbers, `bounciness`, the curses —
+have never been exercised in gameplay, and nothing client-side has been tested: no tooltips, no
+in-world rendering, no enchanting-table UI.
 
 ---
 
