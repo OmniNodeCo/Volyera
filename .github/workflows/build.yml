@@ -93,50 +93,66 @@ jobs:
           exit $status
 
       # Action log downloads are served from blob storage, which is not always
-      # reachable from every environment. Mirroring the failure into a commit
+      # reachable from every environment. Mirroring the result into a commit
       # comment keeps it retrievable through the plain REST API.
       #
-      # With --stacktrace Gradle prints "What went wrong" first and then hundreds
-      # of frames, so a plain tail only shows the stack. Extract the parts that
-      # actually diagnose the problem instead.
-      - name: Report failure
-        if: failure()
+      # This runs whether or not the build succeeded, because a report step that
+      # only runs on failure is a report step that can itself fail and leave
+      # nothing behind - which is exactly what happened, twice. Every grep is
+      # guarded with `|| true` because GitHub's default bash runs with
+      # -o pipefail, so a grep that matches nothing inside a pipeline aborts the
+      # step; the first version of this died that way and posted no report at
+      # all, hiding the real error behind it.
+      - name: Report build result
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           {
-            echo "### Gradle build failed"
+            echo "### Gradle build result"
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
             echo '```'
-            cat build-status.txt 2>/dev/null
+            cat build-status.txt 2>/dev/null || echo "(no stage status recorded)"
             echo '```'
             for f in build-*.log; do
               [ -f "$f" ] || continue
               echo
-              echo "#### \`$f\`"
+              echo "#### $f"
               echo
               echo '```'
-              if grep -q "FAILURE: Build failed" "$f"; then
-                sed -n '/FAILURE: Build failed/,/^\* Try:/p' "$f" | head -50
-                echo "--- caused by ---"
-                grep -h "Caused by" "$f" | head -8
-                echo "--- compiler diagnostics ---"
-                grep -hE "\.java:[0-9]+: (error|warning):|^e: |error: " "$f" | head -30
-                echo "--- failed task ---"
-                grep -hE "^> Task .* FAILED|Execution failed for task" "$f" | head -5
-              else
-                tail -n 40 "$f"
-              fi
+              # With --stacktrace Gradle prints "What went wrong" first and then
+              # hundreds of frames, so a plain tail only shows the stack. Take
+              # the parts that diagnose the problem, and always keep a tail as a
+              # fallback for failures that are not shaped like a Gradle error
+              # (a settings-script problem, for instance, never gets that far).
+              m=$(sed -n '/FAILURE: Build failed/,/^\* Try:/p' "$f" | head -40 || true)
+              [ -n "$m" ] && echo "$m"
+              m=$(grep -h "Caused by" "$f" | head -8 || true)
+              [ -n "$m" ] && { echo "--- caused by ---"; echo "$m"; }
+              m=$(grep -hE '\.java:[0-9]+: (error|warning):|^e: |error: ' "$f" | head -30 || true)
+              [ -n "$m" ] && { echo "--- compiler diagnostics ---"; echo "$m"; }
+              m=$(grep -hE '^> Task .* FAILED|Execution failed for task' "$f" | head -5 || true)
+              [ -n "$m" ] && { echo "--- failed task ---"; echo "$m"; }
+              m=$(grep -hE 'What went wrong|Could not|Exception|Cannot|Unknown|not found|No such' "$f" | head -25 || true)
+              [ -n "$m" ] && { echo "--- likely cause ---"; echo "$m"; }
+              echo "--- tail ---"
+              tail -n 30 "$f" || true
               echo '```'
             done
+            echo
+            echo "#### deliverables"
+            echo
+            echo '```'
+            ls -l dist 2>/dev/null || echo "(dist/ was not created)"
+            echo '```'
           } > /tmp/report.md
           wc -c /tmp/report.md
           gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
             -f body="$(cat /tmp/report.md)" > /dev/null
-          echo "Posted failure report as a commit comment on $GITHUB_SHA"
+          echo "Posted build report as a commit comment on $GITHUB_SHA"
 
       # A green build only proves jars were produced. This proves they were
       # produced correctly: shared resources present in both, metadata templates

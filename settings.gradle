@@ -36,12 +36,23 @@ include 'fabric'
 // script, is what lets `./gradlew build -Pminecraft_version=26.3` work at all:
 // Gradle configures every included project, so a module that cannot configure
 // itself would break a build that never asked for it.
-def mcVersion = providers.gradleProperty('minecraft_version').getOrElse('26.2')
+// Read the properties directly rather than through the Settings provider API:
+// this runs before any project exists, and -Pminecraft_version has to override
+// gradle.properties exactly the way it will for the projects themselves.
+def volyeraProps = new Properties()
+def propsFile = new File(settingsDir, 'gradle.properties')
+if (propsFile.isFile()) {
+    propsFile.withInputStream { volyeraProps.load(it) }
+}
+def mcVersion = gradle.startParameter.projectProperties['minecraft_version'] ?:
+        volyeraProps.getProperty('minecraft_version', '26.2')
 def neoKey = 'neo_version_' + mcVersion.replace('.', '_')
-if (providers.gradleProperty(neoKey).isPresent()) {
+def neoVersion = gradle.startParameter.projectProperties[neoKey] ?:
+        volyeraProps.getProperty(neoKey)
+if (neoVersion) {
     include 'neoforge'
 } else {
     println "Volyera: NeoForge has no stable release for Minecraft ${mcVersion}, " +
-            "so :neoforge is excluded from this build (${neoKey} is not set in " +
+            "so :neoforge is excluded from this build (no ${neoKey} in " +
             "gradle.properties). Fabric only."
 }

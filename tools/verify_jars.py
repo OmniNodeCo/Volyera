@@ -394,8 +394,11 @@ def main() -> int:
         print('\n<!-- markdown -->')
         print('### Packaged jar verification\n')
         for path in jars:
-            print('- `%s` (%d KB)' % (os.path.basename(path),
-                                      os.path.getsize(path) // 1024))
+            # An unexpanded shell glob arrives here as a literal path when a
+            # build produced nothing; report that instead of crashing.
+            size = os.path.getsize(path) // 1024 if os.path.exists(path) else -1
+            print('- `%s` (%s)' % (os.path.basename(path),
+                                   'missing' if size < 0 else '%d KB' % size))
         print('\n```')
         for line in notes:
             print(line)
