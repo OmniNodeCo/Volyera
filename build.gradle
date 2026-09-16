@@ -12,7 +12,11 @@
 // metadata - is derived from it here, once, so the modules cannot disagree.
 
 def mcVersion = String.valueOf(minecraft_version)
+// Two different transforms of the same version, and mixing them up is a silent
+// build failure: mcKey keys gradle.properties (fabric_api_version_26_2), while
+// mcDir names the resource tree the generator writes (common/src/mc262).
 def mcKey = mcVersion.replace('.', '_')
+def mcDir = 'mc' + mcVersion.replace('.', '')
 
 def supported = String.valueOf(supported_minecraft_versions)
         .split(',').collect { it.trim() }.findAll { it }
@@ -27,7 +31,7 @@ def sharedJava = rootProject.file('common/src/main/java')
 // Translations and tag files parse identically on every supported version, so
 // they stay shared; only the enchantment definitions are per version.
 def sharedResources = rootProject.file('common/src/main/resources')
-def versionResources = rootProject.file("common/src/mc${mcKey}/resources")
+def versionResources = rootProject.file("common/src/${mcDir}/resources")
 if (!versionResources.isDirectory()) {
     throw new GradleException(
             "No resource tree for Minecraft ${mcVersion} at ${versionResources}. " +
@@ -52,6 +56,7 @@ def neoKey = "neo_version_${mcKey}"
 rootProject.ext.mc = [
         version   : mcVersion,
         key       : mcKey,
+        dir       : mcDir,
         // NeoForge's mods.toml wants a version range; Fabric's mod json wants a
         // dependency predicate. Both are derived so neither can drift.
         range     : "[${mcVersion}]",

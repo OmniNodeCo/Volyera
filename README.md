@@ -29,7 +29,7 @@ builds one jar per loader from a single shared source tree.
 | **Shadowstride** | leggings | III | +12 % sneaking speed and +40 % movement efficiency per level (ignores soul-sand-style slowdown). |
 | **Momentum** | leggings | III | +10 % speed per level once you are already moving quickly. |
 | **Featherstep** | boots | III | +3 safe fall distance, −20 % fall damage and fall protection per level. |
-| **Springstep** | boots | III | Uses 26.2's new **bounciness** attribute, plus step height and jump strength. |
+| **Springstep** | boots | III | Uses the **bounciness** attribute added in 26.2 (and still present in 26.3), plus step height and jump strength. |
 | **Abysswalker** | boots | III | Full swim speed and normal mining speed while submerged. |
 | **Vanguard** | chestplate | II | +2 armour per level and a chance to inflict Weakness on melee attackers. |
 | **Curse of Anchoring** | any equippable | I | *Treasure curse.* Slows you, increases gravity, reduces step height — and cannot be taken off. |
@@ -69,23 +69,29 @@ Requires a **Java 25** JDK. Gradle will auto-provision one via the foojay toolch
 yours is older, and the wrapper downloads Gradle 9.5.1 for you.
 
 ```bash
-./gradlew build          # both loaders
+./gradlew build                                     # 26.2, both loaders (the default)
+./gradlew :fabric:build -Pminecraft_version=26.3    # the 26.3 Fabric jar
 ```
 
-Jars land in `fabric/build/libs/` and `neoforge/build/libs/`:
+Jars land in `fabric/build/libs/` and `neoforge/build/libs/`. The target game version is part of
+the file name, so the three artifacts can sit side by side:
 
 ```
 volyera-fabric-26.2-1.0.0.jar
+volyera-fabric-26.3-1.0.0.jar
 volyera-neoforge-26.2-1.0.0.jar
 ```
 
-Install the jar matching your loader into `.minecraft/mods`.
+Install the jar matching **both** your loader and your Minecraft version. A 26.2 jar on a 26.3
+server loads nothing and logs nothing — see the note below.
 
-| Loader | Minimum version |
-|---|---|
-| Fabric Loader | 0.19.5 |
-| Fabric API | 0.160.0 (for the `fabric-resource-loader-v1` module) |
-| NeoForge | 26.2.0.87 |
+| Loader | Minecraft | Minimum version |
+|---|---|---|
+| Fabric Loader | 26.2, 26.3 | 0.19.5 |
+| Fabric API | 26.2 | 0.160.0+26.2 |
+| Fabric API | 26.3 | 0.160.6+26.3 |
+| NeoForge | 26.2 | 26.2.0.87 |
+| NeoForge | 26.3 | *not shipped — no stable release yet* |
 
 **Fabric API is required on Fabric; nothing extra is required on NeoForge.** Volyera's behaviour is
 entirely data-driven, but data-driven is not the same as self-loading: it is Fabric API's
@@ -113,19 +119,51 @@ Development runs:
 ```
 Volyera/
 ├── common/          loader-agnostic sources + ALL content (not a Gradle project)
-│   └── src/main/
-│       ├── java/net/volyera/
-│       │   ├── Volyera.java              shared constants, logger, id() helper
-│       │   └── VolyeraEnchantments.java  generated ResourceKey<Enchantment> constants
-│       └── resources/
-│           ├── assets/volyera/lang/en_us.json
-│           ├── data/volyera/enchantment/*.json           20 enchantments
-│           ├── data/volyera/tags/enchantment/*.json      grouping + exclusive sets
-│           └── data/minecraft/tags/enchantment/*.json    merges into vanilla tags
+│   └── src/
+│       ├── main/
+│       │   ├── java/net/volyera/
+│       │   │   ├── Volyera.java              shared constants, logger, id() helper
+│       │   │   └── VolyeraEnchantments.java  generated ResourceKey<Enchantment> constants
+│       │   └── resources/                    shared by every game version
+│       │       ├── assets/volyera/lang/en_us.json
+│       │       ├── data/volyera/tags/enchantment/*.json      grouping + exclusive sets
+│       │       └── data/minecraft/tags/enchantment/*.json    merges into vanilla tags
+│       ├── mc262/resources/data/volyera/enchantment/*.json   20 enchantments, 26.2 format
+│       └── mc263/resources/data/volyera/enchantment/*.json   20 enchantments, 26.3 format
 ├── fabric/          Loom module + ModInitializer entrypoint + fabric.mod.json
 ├── neoforge/        ModDevGradle module + @Mod entrypoint + neoforge.mods.toml template
-└── tools/generate_enchantments.py   the authoring source for everything in common/resources
+└── tools/generate_enchantments.py   the authoring source for everything in common/
 ```
+
+### Two versions, one source of truth
+
+26.3 is a **breaking data-format release** for enchantments. Diffing the vanilla data between the
+two versions shows 20 enchantment definitions changed and no components added or removed — every
+difference comes from exactly two renames:
+
+| | 26.2 | 26.3 |
+|---|---|---|
+| condition discriminator | `{"condition": "minecraft:random_chance"}` | `{"type": "minecraft:random_chance"}` |
+| damage-source tag reference | `{"id": "minecraft:is_fire"}` | `{"id": "#minecraft:is_fire"}` |
+
+Neither version's codec accepts the other's spelling, so one jar cannot serve both. Volyera's tags
+and translations are byte-identical across the two versions (verified file by file), so only the 20
+definitions are duplicated — into `common/src/mc262/` and `common/src/mc263/`, both written by the
+generator. There is still no place to hand-edit one version and forget the other.
+
+`-Pminecraft_version` selects the whole target at once: the resource tree, the Fabric API release,
+the artifact name and the loader metadata's version dependency. The root `build.gradle` resolves it
+once into `rootProject.ext.mc`, so no module can disagree with another. When a target has no
+`neo_version_<target>` in `gradle.properties`, `settings.gradle` drops `:neoforge` from the build
+entirely — which is what makes `-Pminecraft_version=26.3` work, since Gradle configures every
+included project and a module that cannot configure itself would break a build that never asked
+for it. Adding `neo_version_26_3` when NeoForge cuts a stable release brings the module back with
+no other change.
+
+> **Why this is enforced rather than trusted.** A jar built with the wrong version's data compiles,
+> packages and boots without a single error — it just registers nothing. `tools/verify_jars.py`
+> reads the Minecraft version out of the artifact *name* and asserts the packaged JSON uses that
+> version's spelling, so the two can never silently disagree.
 
 ### Why there is almost no Java
 
@@ -207,7 +245,16 @@ Be aware of exactly what has and has not been machine-checked here.
 **Verified against primary sources:**
 
 * Minecraft 26.2 = Java 25, protocol 776, data pack format 107.1, resource pack format 88.0, and
-  **no enchantment changes** in the 26.2 changelog.
+  **no enchantment changes** in the 26.2 changelog. Minecraft 26.3 = Java 25, data pack format
+  121.0, resource pack format 97.1.
+* **The 26.3 enchantment format was derived by diffing vanilla data, not assumed.** Comparing
+  `data/minecraft/enchantment/` between the 26.2 and 26.3 asset branches shows 20 definitions
+  changed, none added or removed, and no effect components added or removed — every difference
+  reduces to the two renames in [Two versions, one source of truth](#two-versions-one-source-of-truth).
+  Tags under `data/minecraft/tags/enchantment/` were compared file by file and are identical, which
+  is why they stay shared. NeoForge 26.3 exists only as `26.3.0.1-beta` — the official MDK-26.3
+  pins that, and unlike `26.1.2` and `26.2.0` the `26.3.0` tag has no `-stable` counterpart — which
+  is why 26.3 ships Fabric-only.
 * Every enchantment JSON shape was derived from the **actual vanilla 26.2 data files**
   (`data/minecraft/enchantment/*.json`), including the 26.x flattening of `minecraft:attributes`,
   the `prevent_armor_change` / `prevent_equipment_drop` split, and `change_item_damage` replacing
@@ -227,23 +274,26 @@ Be aware of exactly what has and has not been machine-checked here.
 **Verified by CI on GitHub Actions** (this workspace has no JDK and cannot reach the Gradle,
 NeoForged, Fabric or Mojang Maven repositories, so all of it was proven in CI):
 
-* **Both loaders compile and package.** `:fabric:build` under Loom 1.17.21 and `:neoforge:build`
-  under ModDevGradle 2.0.147 / NeoForge 26.2.0.87, on Gradle 9.5.1 with a Java 25 toolchain. The
-  version coordinates above are not guesses — they resolved and built.
-* **Both jars contain the right bytes.** `tools/verify_jars.py` runs against the finished artifacts
-  and asserts 36 conditions per pair: all 20 enchantment definitions and all 15 tag files are
+* **Both loaders compile and package, for every supported version.** Three artifacts per run:
+  `:fabric:build -Pminecraft_version=26.2`, `:fabric:build -Pminecraft_version=26.3` and
+  `:neoforge:build` (26.2) under ModDevGradle 2.0.147 / NeoForge 26.2.0.87, on Gradle 9.5.1 with a
+  Java 25 toolchain. The version coordinates above are not guesses — they resolved and built.
+* **All three jars contain the right bytes.** `tools/verify_jars.py` runs against the finished
+  artifacts and asserts 66 conditions: all 20 enchantment definitions and all 15 tag files are
   present in *each* jar, every packaged enchantment JSON still parses and carries its required
   fields, no class targets a JVM newer than Java 25 (class file major 69), nothing leaked across
-  loaders, and each loader's metadata is fully expanded with the right id, version and entrypoint.
-  Output is mirrored into a commit comment on every run.
-* **A real 26.2 server accepts the data, and the enchantments are registered.** CI boots a
-  dedicated server for each loader and asks the live console to put `volyera:warding` on an item,
-  beside a `minecraft:protection` control so an out-of-date SNBT syntax cannot masquerade as a
-  result. Both loaders decode it cleanly, both reach `Done` with the mod loaded and zero data load
-  errors, and both report the mod's pack as enabled — `[volyera (Fabric mod)]` on Fabric,
-  `[mod_data]` on NeoForge. See the "Server boot check" comment on any recent commit.
+  loaders, each loader's metadata is fully expanded with the right id, version and entrypoint, and
+  the version pinned in that metadata is the one the packaged data is actually written in. Output is
+  mirrored into a commit comment on every run.
+* **Real servers accept the data, and the enchantments are registered.** CI boots a dedicated
+  server for each of the three artifacts — Fabric 26.2, Fabric 26.3, NeoForge 26.2 — and asks the
+  live console to put `volyera:warding` on an item, beside a `minecraft:protection` control so an
+  out-of-date SNBT syntax cannot masquerade as a result. All three decode it cleanly, reach `Done`
+  with the mod loaded and zero data load errors, and report the mod's pack as enabled —
+  `[volyera (Fabric mod)]` on Fabric, `[mod_data]` on NeoForge. See the "Server boot check" comment
+  on any recent commit.
 
-Two things this caught that nothing else would have:
+Three things this caught that nothing else would have:
 
 * The `levels:` wrapper is **gone** from the `minecraft:enchantments` item component in 26.2. It is
   now a flat map. Minecraft logs the decode failure and then summons the item anyway with the
@@ -257,6 +307,12 @@ Two things this caught that nothing else would have:
 * On Fabric the data was not being read at all until `fabric-resource-loader-v1` was added — see
   the requirements above. The jar was correct, the server booted cleanly, no error was logged, and
   the enchantment registry was simply empty.
+
+* The 26.3 format split is invisible until it isn't. A jar carrying the *wrong version's* data
+  compiles, packages and boots with zero errors — it just registers nothing, exactly like the two
+  failures above. `tools/verify_jars.py` therefore reads the Minecraft version out of the artifact
+  name and asserts the JSON inside is written in that version's spelling, and `tools/audit_project.py`
+  checks each resource tree against its own format before anything is built.
 
 **Not covered:** the probe exercises one enchantment (`warding`) for registry presence. The other
 19 load from the same pack and would have logged a parse or validation error had any of them been

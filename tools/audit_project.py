@@ -282,6 +282,20 @@ if missing:
                 'supply: %s' % sorted(missing))
 print('fabric.mod.json placeholders: %s' % sorted(need))
 
+# The resource tree directory is mc<version with no separator>, and build.gradle
+# must derive it the same way the generator and this script do. Getting it wrong
+# (mc26_2 instead of mc262) fails only when Gradle runs, so check it here where
+# it is free.
+bg = open(os.path.join(ROOT, 'build.gradle'), encoding='utf-8').read()
+if "def mcDir = 'mc' + mcVersion.replace('.', '')" not in bg:
+    fail.append('build.gradle does not derive mcDir as "mc" + the version without '
+                'separators, which is how the generator names the resource trees')
+if 'common/src/mc${mcKey}' in bg:
+    fail.append('build.gradle builds the resource tree path from mcKey (underscores); '
+                'the trees on disk have no separator')
+if 'common/src/${mcDir}/resources' not in bg:
+    fail.append('build.gradle does not resolve the version resource tree via mcDir')
+
 # Per-version coordinates the build scripts require must exist.
 for version in VERSIONS:
     key = version.replace('.', '_')

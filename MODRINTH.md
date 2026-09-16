@@ -7,9 +7,9 @@ short summary field; the **Description** is the Markdown body.
 
 ## Summary (short field, ≤ 256 characters)
 
-> 20 new armour enchantments for Minecraft 26.2 — elemental wards, mobility boons and two real curses. Fully data-driven, so the Fabric and NeoForge jars ship identical content. Fabric needs Fabric API.
+> 20 new armour enchantments for Minecraft 26.2 and 26.3 — elemental wards, mobility boons and two real curses. Fully data-driven, so every jar ships identical content. Fabric needs Fabric API.
 
-*(200 characters)*
+*(193 characters)*
 
 ---
 
@@ -116,15 +116,19 @@ Everything else stacks.
 
 | | |
 |---|---|
-| **Minecraft** | 26.2 (Java Edition) |
+| **Minecraft** | 26.2 and 26.3 (Java Edition) |
 | **Java** | 25 or newer |
-| **Loaders** | Fabric · NeoForge |
+| **Loaders** | Fabric (26.2, 26.3) · NeoForge (26.2) |
 | **Fabric Loader** | 0.19.5+ |
 | **NeoForge** | 26.2.0.87+ |
-| **Fabric API** | **Required on Fabric** (`fabric-resource-loader-v1`, part of Fabric API 0.160.0+) — not needed on NeoForge |
+| **Fabric API** | **Required on Fabric** — `fabric-resource-loader-v1`, part of Fabric API 0.160.0+26.2 or 0.160.6+26.3. Not needed on NeoForge. |
 
-Install the jar for your loader into your `mods` folder. Works on dedicated servers — put it on
-both sides so names and tooltips resolve correctly.
+**NeoForge 26.3 is not published yet.** NeoForge has only released `26.3.0.1-beta` for that version
+— no `-stable` build, unlike 26.1 and 26.2 — so Volyera holds its NeoForge file on 26.2 until one
+exists. Fabric covers 26.3 today.
+
+Install the jar matching **both** your loader and your Minecraft version into your `mods` folder.
+Works on dedicated servers — put it on both sides so names and tooltips resolve correctly.
 
 <br>
 
@@ -159,16 +163,17 @@ vanilla 26.2 actually defines, so nothing here relies on undocumented or removed
 | **Environments** | Client: **required** · Server: **required** |
 | **Project type** | Mod |
 | **Loaders** | Fabric, NeoForge |
-| **Game versions** | 26.2 |
+| **Game versions** | 26.2, 26.3 |
 | **Source URL** | `https://github.com/OmniNodeCo/Volyera` |
 | **Issues URL** | `https://github.com/OmniNodeCo/Volyera/issues` |
 
 ### Dependencies
 
-On the **Fabric** file, declare **Fabric API** as a *required* dependency. Volyera uses none of its
-APIs — it needs only `fabric-resource-loader-v1`, the module that registers a mod's `data/` folder
-with the game's pack repository, without which the enchantments are never loaded. Modrinth resolves
-that module to the Fabric API project, so list Fabric API itself.
+On **both Fabric** files, declare **Fabric API** as a *required* dependency. Volyera uses none of
+its APIs — it needs only `fabric-resource-loader-v1`, the module that registers a mod's `data/`
+folder with the game's pack repository, without which the enchantments are never loaded. Modrinth
+resolves that module to the Fabric API project, so list Fabric API itself, pinned per game version
+(0.160.0+26.2 and 0.160.6+26.3).
 
 On the **NeoForge** file, declare **no** dependencies: NeoForge loads mod data natively.
 
@@ -177,15 +182,22 @@ Consider suggesting **Enchantment Descriptions** as an optional companion, since
 
 ### Version files
 
-Upload both jars to each version, tagged by loader:
+Three files, one per loader **and** game version — the game version is in the file name:
 
-| File | Loaders | Name it |
-|---|---|---|
-| `volyera-fabric-26.2-1.0.0.jar` | Fabric | Volyera 1.0.0 (Fabric, MC 26.2) |
-| `volyera-neoforge-26.2-1.0.0.jar` | NeoForge | Volyera 1.0.0 (NeoForge, MC 26.2) |
+| File | Loader | Game versions | Name it |
+|---|---|---|---|
+| `volyera-fabric-26.2-1.0.0.jar` | Fabric | 26.2 | Volyera 1.0.0 (Fabric, MC 26.2) |
+| `volyera-fabric-26.3-1.0.0.jar` | Fabric | 26.3 | Volyera 1.0.0 (Fabric, MC 26.3) |
+| `volyera-neoforge-26.2-1.0.0.jar` | NeoForge | 26.2 | Volyera 1.0.0 (NeoForge, MC 26.2) |
 
-Set **Release channel** to *Release*, **Game versions** to `26.2`. Modrinth lets one version carry
-multiple loaders, but because these are separate jars it is cleaner to publish two versions.
+Set **Release channel** to *Release* and give each version only the game version it actually
+supports. Modrinth lets one version carry several loaders, but not several game versions with
+different files, so publish these as three versions.
+
+The two Fabric files are **not interchangeable**: 26.3 renamed the enchantment condition
+discriminator from `condition` to `type` and made damage-source tag references `#`-prefixed, and
+neither game version accepts the other's spelling. Publishing the 26.2 jar against 26.3 would look
+fine and load nothing.
 
 ### Gallery suggestions
 
