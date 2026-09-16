@@ -1,0 +1,44 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.keeneye"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 0.5,
+          "per_level_above_first": 0.5,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:block_interaction_range",
+        "id": "volyera:enchantment.keeneye",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 0.5,
+          "per_level_above_first": 0.5,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:entity_interaction_range",
+        "id": "volyera:enchantment.keeneye",
+        "operation": "add_value"
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 34,
+    "per_level_above_first": 12
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 10,
+    "per_level_above_first": 12
+  },
+  "slots": [
+    "head"
+  ],
+  "supported_items": "#minecraft:enchantable/head_armor",
+  "weight": 1
+}

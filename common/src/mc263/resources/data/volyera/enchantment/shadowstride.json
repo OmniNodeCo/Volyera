@@ -1,0 +1,44 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.shadowstride"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 0.12,
+          "per_level_above_first": 0.12,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:sneaking_speed",
+        "id": "volyera:enchantment.shadowstride",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 0.4,
+          "per_level_above_first": 0.4,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:movement_efficiency",
+        "id": "volyera:enchantment.shadowstride",
+        "operation": "add_value"
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 60,
+    "per_level_above_first": 15
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 15,
+    "per_level_above_first": 15
+  },
+  "slots": [
+    "legs"
+  ],
+  "supported_items": "#minecraft:enchantable/leg_armor",
+  "weight": 2
+}

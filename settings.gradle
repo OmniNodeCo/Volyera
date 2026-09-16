@@ -22,8 +22,26 @@ rootProject.name = 'Volyera'
 
 // Two loader modules. The loader-agnostic sources and all of the mod's data
 // live in `common/`, which is *not* a Gradle project: both modules compile and
-// package it directly (see the root build.gradle). Because Minecraft 26.2 ships
-// unobfuscated, the same sources and the same enchantment JSON are valid for
-// both loaders with no remapping step.
+// package it directly (see the root build.gradle). Because Minecraft ships
+// unobfuscated from 26.1 onwards, the same Java sources are valid for both
+// loaders with no remapping step.
 include 'fabric'
-include 'neoforge'
+
+// The data is *not* valid for every Minecraft version, though: 26.3 renamed the
+// enchantment condition discriminator, so each version gets its own resource
+// tree and the target is chosen by -Pminecraft_version (see gradle.properties).
+//
+// :neoforge is included only when NeoForge has a stable release for the targeted
+// version. Excluding the project here, rather than failing inside its build
+// script, is what lets `./gradlew build -Pminecraft_version=26.3` work at all:
+// Gradle configures every included project, so a module that cannot configure
+// itself would break a build that never asked for it.
+def mcVersion = providers.gradleProperty('minecraft_version').getOrElse('26.2')
+def neoKey = 'neo_version_' + mcVersion.replace('.', '_')
+if (providers.gradleProperty(neoKey).isPresent()) {
+    include 'neoforge'
+} else {
+    println "Volyera: NeoForge has no stable release for Minecraft ${mcVersion}, " +
+            "so :neoforge is excluded from this build (${neoKey} is not set in " +
+            "gradle.properties). Fabric only."
+}

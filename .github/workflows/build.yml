@@ -28,10 +28,10 @@ jobs:
           python-version: '3.12'
 
       # The enchantment JSON, tags, lang file and Java key constants are all
-      # generated. This fails if a committed file no longer matches the roster,
-      # or uses an effect component / attribute / tag / mob effect that vanilla
-      # 26.2 does not define.
-      - name: Validate generated data against the 26.2 vocabulary
+      # generated, once per supported Minecraft version. This fails if a
+      # committed file no longer matches the roster, or uses an effect component
+      # / attribute / tag / mob effect that vanilla does not define.
+      - name: Validate generated data against the vanilla vocabulary
         run: python3 tools/generate_enchantments.py --check
 
       # Reads what is committed rather than the in-memory roster, so it also
@@ -66,8 +66,29 @@ jobs:
           : > build-status.txt
           run_stage versions ./gradlew --version
           run_stage projects ./gradlew projects
-          run_stage neoforge ./gradlew :neoforge:build --stacktrace
-          run_stage fabric   ./gradlew :fabric:build --stacktrace
+
+          # One invocation per loader x Minecraft version. The Fabric module is
+          # built twice because 26.3 renamed the enchantment condition
+          # discriminator, so the two versions need different data and cannot
+          # share a jar; -Pminecraft_version selects the resource tree, the
+          # Fabric API release and the artifact name together.
+          #
+          # NeoForge is built once: it has no stable 26.3, and settings.gradle
+          # excludes the module entirely for that target.
+          run_stage neoforge-26.2 ./gradlew :neoforge:build --stacktrace
+          run_stage fabric-26.2   ./gradlew :fabric:build -Pminecraft_version=26.2 --stacktrace
+          run_stage fabric-26.3   ./gradlew :fabric:build -Pminecraft_version=26.3 --stacktrace
+
+          # Collect into one directory so the verification and upload steps see
+          # exactly the deliverables, and so a jar missing because its stage
+          # failed is obvious rather than hidden by a glob that matched nothing.
+          mkdir -p dist
+          cp fabric/build/libs/volyera-fabric-*.jar dist/ 2>/dev/null || true
+          cp neoforge/build/libs/volyera-neoforge-*.jar dist/ 2>/dev/null || true
+          rm -f dist/*-sources.jar
+          echo "--- deliverables ---"
+          ls -l dist || true
+
           cat build-status.txt
           exit $status
 
@@ -126,7 +147,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python3 tools/verify_jars.py --markdown 2>&1 | tee jar-report.log
+          python3 tools/verify_jars.py --markdown dist/*.jar 2>&1 | tee jar-report.log
 
       # Artifacts are served from blob storage, which is not reachable from every
       # environment, so mirror the verification summary into a commit comment.
@@ -154,10 +175,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v7
         with:
-          name: Volyera-26.2
-          path: |
-            fabric/build/libs/*.jar
-            neoforge/build/libs/*.jar
+          name: Volyera-jars
+          path: dist/*.jar
           if-no-files-found: error
 
   # A successful compile proves the Java is valid; it says nothing about whether
@@ -181,13 +200,21 @@ jobs:
   # to be read at all, while NeoForge loads mod data natively, and that
   # difference is precisely the kind of thing worth proving rather than assuming.
   boot:
-    name: Boot a 26.2 server (${{ matrix.loader }})
+    name: Boot a ${{ matrix.mc }} server (${{ matrix.loader }})
     runs-on: ubuntu-latest
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        loader: [fabric, neoforge]
+        # One leg per artifact that was built. There is no neoforge/26.3 leg
+        # because NeoForge has no stable 26.3 release yet.
+        include:
+          - loader: fabric
+            mc: '26.2'
+          - loader: fabric
+            mc: '26.3'
+          - loader: neoforge
+            mc: '26.2'
 
     steps:
       - name: Checkout repository
@@ -233,6 +260,7 @@ jobs:
           # `standardInput = System.in` the NeoForge run task relies on would
           # still be empty. In the foreground System.in is the FIFO below.
           timeout 900 ./gradlew ":${{ matrix.loader }}:runServer" \
+            -Pminecraft_version=${{ matrix.mc }} \
             --console=plain --no-daemon < console.fifo > server.log 2>&1 &
           gradle_pid=$!
 
@@ -326,7 +354,7 @@ jobs:
           warn_lines=$(grep -inE "/(WARN|ERROR)]" server.log | head -40 || true)
 
           {
-            echo "### Server boot check - $LOADER"
+            echo "### Server boot check - $LOADER, Minecraft ${{ matrix.mc }}"
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
@@ -443,7 +471,7 @@ jobs:
             exit 1
           fi
           if [ "$proven" = yes ]; then
-            echo "PROVEN: a live 26.2 ${{ matrix.loader }} server put volyera:warding on an"
+            echo "PROVEN: a live ${{ matrix.mc }} ${{ matrix.loader }} server put volyera:warding on an"
             echo "item, decoding it exactly as it decoded the vanilla control."
             exit 0
           fi

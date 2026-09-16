@@ -35,11 +35,55 @@ import sys
 from typing import Any
 
 NS = "volyera"
-RES_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                        "common", "src", "main", "resources")
-ENCH_DIR = os.path.join(RES_ROOT, "data", NS, "enchantment")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+COMMON_SRC = os.path.join(REPO_ROOT, "common", "src")
+
+# Resources that every supported Minecraft version parses identically: the
+# translations and all tag files. The vanilla tag trees for 26.2 and 26.3 were
+# diffed file by file and are byte-identical, so they stay shared.
+RES_ROOT = os.path.join(COMMON_SRC, "main", "resources")
 VOL_TAG_DIR = os.path.join(RES_ROOT, "data", NS, "tags", "enchantment")
 MC_TAG_DIR = os.path.join(RES_ROOT, "data", "minecraft", "tags", "enchantment")
+
+# Minecraft versions this generator can emit. 26.3 renamed the condition
+# discriminator from "condition" to "type" and made damage-source tag
+# references "#"-prefixed. Both are breaking and neither is accepted by the
+# other version's codec, so the enchantment definitions - and only those - are
+# emitted once per version into their own resource tree.
+SUPPORTED_VERSIONS = ("26.2", "26.3")
+
+
+def _vparts(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
+
+
+def version_res(version: str) -> str:
+    """Resource tree holding what only that Minecraft version can parse."""
+    return os.path.join(COMMON_SRC, "mc" + version.replace(".", ""), "resources")
+
+
+TARGET = SUPPORTED_VERSIONS[0]
+COND_KEY = "condition"   # "type" from 26.3
+TAG_PREFIX = ""          # "#"  from 26.3
+ENCH_DIR = os.path.join(version_res(TARGET), "data", NS, "enchantment")
+
+
+def set_target(version: str) -> None:
+    """Point the emitters at one Minecraft version."""
+    global TARGET, COND_KEY, TAG_PREFIX, ENCH_DIR
+    if version not in SUPPORTED_VERSIONS:
+        raise ValueError(f"unsupported Minecraft version {version!r}; "
+                         f"expected one of {SUPPORTED_VERSIONS}")
+    modern = _vparts(version) >= (26, 3)
+    TARGET = version
+    COND_KEY = "type" if modern else "condition"
+    TAG_PREFIX = "#" if modern else ""
+    ENCH_DIR = os.path.join(version_res(version), "data", NS, "enchantment")
+
+
+def cond(kind: str, **fields: Any) -> dict:
+    """A condition object, keyed however the target version wants it."""
+    return {COND_KEY: kind, **fields}
 
 # ---------------------------------------------------------------------------
 # Vocabulary verified against vanilla Minecraft 26.2 data
@@ -165,11 +209,11 @@ def source_tags(*pairs: tuple[str, bool]) -> dict:
     """A `damage_source_properties` condition over damage-type tags."""
     for tag, _ in pairs:
         assert tag in DAMAGE_TYPE_TAGS, f"unknown damage type tag {tag}"
-    return {
-        "condition": "minecraft:damage_source_properties",
-        "predicate": {"tags": [{"expected": exp, "id": f"minecraft:{tag}"}
-                               for tag, exp in pairs]},
-    }
+    return cond(
+        "minecraft:damage_source_properties",
+        predicate={"tags": [{"expected": exp, "id": f"{TAG_PREFIX}minecraft:{tag}"}
+                            for tag, exp in pairs]},
+    )
 
 
 def not_invulnerable() -> tuple[str, bool]:
@@ -192,9 +236,9 @@ def immunity(*tags: tuple[str, bool]) -> dict:
 
 def level_chance(base: float, per_level: float) -> dict:
     """`random_chance` whose odds scale with enchantment level (vanilla thorns)."""
-    return {"condition": "minecraft:random_chance",
-            "chance": {"type": "minecraft:enchantment_level",
-                       "amount": lin(base, per_level)}}
+    return cond("minecraft:random_chance",
+                chance={"type": "minecraft:enchantment_level",
+                        "amount": lin(base, per_level)})
 
 
 def post_attack(effect: dict, *, affected: str = "attacker",
@@ -213,22 +257,22 @@ def all_of(*effects: dict) -> dict:
 
 
 def conditional(*terms: dict) -> dict:
-    return {"condition": "minecraft:all_of", "terms": list(terms)}
+    return cond("minecraft:all_of", terms=list(terms))
 
 
 def entity_flags(**flags: bool) -> dict:
-    return {"condition": "minecraft:entity_properties", "entity": "this",
-            "predicate": {"minecraft:flags": flags}}
+    return cond("minecraft:entity_properties", entity="this",
+                predicate={"minecraft:flags": flags})
 
 
 def periodic(ticks: int) -> dict:
-    return {"condition": "minecraft:entity_properties", "entity": "this",
-            "predicate": {"minecraft:periodic_tick": int(ticks)}}
+    return cond("minecraft:entity_properties", entity="this",
+                predicate={"minecraft:periodic_tick": int(ticks)})
 
 
 def horizontal_speed_at_least(speed: float) -> dict:
-    return {"condition": "minecraft:entity_properties", "entity": "this",
-            "predicate": {"minecraft:movement": {"horizontal_speed": {"min": float(speed)}}}}
+    return cond("minecraft:entity_properties", entity="this",
+                predicate={"minecraft:movement": {"horizontal_speed": {"min": float(speed)}}})
 
 
 def mob_effect(effect: str, *, min_duration: Any, max_duration: Any,
@@ -400,8 +444,7 @@ def build_enchantments() -> dict[str, dict]:
             "minecraft:location_changed": [{
                 "effect": attribute_effect("movement_speed", lin(0.10, 0.10),
                                            "add_multiplied_total"),
-                "requirements": {"condition": "minecraft:weather_check",
-                                 "thundering": True},
+                "requirements": cond("minecraft:weather_check", thundering=True),
             }],
         },
         max_level=2, weight=1, anvil_cost=4,
@@ -734,9 +777,13 @@ def validate(enchantments: dict[str, dict]) -> list[str]:
             return
         if not isinstance(c, dict):
             return
-        kind = c.get("condition")
+        kind = c.get(COND_KEY)
         if kind is not None:
-            if kind not in CONDITIONS:
+            # From 26.3 the discriminator is "type", which condition objects
+            # share with effect and value objects, so only reject a kind that
+            # belongs to neither vocabulary.
+            if kind not in CONDITIONS and kind not in EFFECT_TYPES \
+                    and kind not in VALUE_TYPES:
                 err(f"{where}: unknown condition {kind!r}")
             if kind == "minecraft:damage_source_properties":
                 for tag in c.get("predicate", {}).get("tags", []):
@@ -1009,25 +1056,43 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--check", action="store_true",
                         help="validate and report drift without writing files")
+    parser.add_argument("--mc-version", action="append", metavar="VERSION",
+                        choices=SUPPORTED_VERSIONS,
+                        help="emit only this Minecraft version, repeatable "
+                             "(default: every supported version)")
     args = parser.parse_args()
 
-    enchantments = build_enchantments()
+    versions = args.mc_version or list(SUPPORTED_VERSIONS)
+    files: dict[str, str] = {}
+    roster = 0
 
-    errors = validate(enchantments)
-    if errors:
-        print("VALIDATION FAILED:", file=sys.stderr)
-        for e in errors:
-            print(f"  - {e}", file=sys.stderr)
-        return 1
+    for version in versions:
+        set_target(version)
+        enchantments = build_enchantments()
 
-    for table, label in ((DISPLAY_NAMES, "DISPLAY_NAMES"), (JAVA_DOC, "JAVA_DOC")):
-        mismatch = sorted(set(table) ^ set(enchantments))
-        if mismatch:
-            print(f"{label} does not match the roster: {mismatch}", file=sys.stderr)
+        errors = validate(enchantments)
+        if errors:
+            print(f"VALIDATION FAILED for Minecraft {version}:", file=sys.stderr)
+            for e in errors:
+                print(f"  - {e}", file=sys.stderr)
             return 1
 
-    files = expected_files(enchantments)
-    print(f"validated {len(enchantments)} enchantments against the 26.2 vocabulary: OK")
+        for table, label in ((DISPLAY_NAMES, "DISPLAY_NAMES"), (JAVA_DOC, "JAVA_DOC")):
+            mismatch = sorted(set(table) ^ set(enchantments))
+            if mismatch:
+                print(f"{label} does not match the roster: {mismatch}", file=sys.stderr)
+                return 1
+
+        # Tags, translations and the Java constants are version-agnostic, so
+        # later iterations simply overwrite them with identical bytes.
+        files.update(expected_files(enchantments))
+        roster = len(enchantments)
+        print(f"  {version}: {len(enchantments)} enchantments validated "
+              f"(condition key {COND_KEY!r}, damage-source tag ids "
+              f"{'#' if TAG_PREFIX else 'un'}prefixed)")
+
+    enchantment_files = roster * len(versions)
+    print(f"validated {roster} enchantments for {', '.join(versions)}: OK")
 
     if args.check:
         drift = []
@@ -1036,6 +1101,13 @@ def main() -> int:
                 drift.append(f"missing {path}")
             elif open(path, encoding="utf-8").read() != want:
                 drift.append(f"stale   {path}")
+        # Enchantment definitions used to live in the shared tree; a leftover
+        # copy there would be picked up by every version and silently override
+        # the correct one.
+        legacy = os.path.join(RES_ROOT, "data", NS, "enchantment")
+        if os.path.isdir(legacy):
+            for name in sorted(os.listdir(legacy)):
+                drift.append(f"legacy  {os.path.join(legacy, name)}")
         if drift:
             print("DRIFT DETECTED (run without --check to regenerate):", file=sys.stderr)
             for d in drift:
@@ -1049,8 +1121,9 @@ def main() -> int:
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(content)
 
-    print(f"wrote {len(files)} files: {len(enchantments)} enchantments, "
-          f"{len(files) - len(enchantments) - 2} tag files, 1 lang file, 1 Java file")
+    print(f"wrote {len(files)} files: {enchantment_files} enchantment definitions "
+          f"({roster} x {len(versions)} versions), "
+          f"{len(files) - enchantment_files - 2} tag files, 1 lang file, 1 Java file")
     return 0
 
 

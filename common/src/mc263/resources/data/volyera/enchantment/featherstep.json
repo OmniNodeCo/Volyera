@@ -1,0 +1,72 @@
+{
+  "anvil_cost": 2,
+  "description": {
+    "translate": "enchantment.volyera.featherstep"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 3.0,
+          "per_level_above_first": 3.0,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:safe_fall_distance",
+        "id": "volyera:enchantment.featherstep",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": -0.2,
+          "per_level_above_first": -0.2,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:fall_damage_multiplier",
+        "id": "volyera:enchantment.featherstep",
+        "operation": "add_multiplied_base"
+      }
+    ],
+    "minecraft:damage_protection": [
+      {
+        "effect": {
+          "type": "minecraft:add",
+          "value": {
+            "base": 2.0,
+            "per_level_above_first": 2.0,
+            "type": "minecraft:linear"
+          }
+        },
+        "requirements": {
+          "predicate": {
+            "tags": [
+              {
+                "expected": true,
+                "id": "#minecraft:is_fall"
+              },
+              {
+                "expected": false,
+                "id": "#minecraft:bypasses_invulnerability"
+              }
+            ]
+          },
+          "type": "minecraft:damage_source_properties"
+        }
+      }
+    ]
+  },
+  "exclusive_set": "#volyera:exclusive_set/descent",
+  "max_cost": {
+    "base": 11,
+    "per_level_above_first": 6
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 5,
+    "per_level_above_first": 6
+  },
+  "slots": [
+    "feet"
+  ],
+  "supported_items": "#minecraft:enchantable/foot_armor",
+  "weight": 5
+}

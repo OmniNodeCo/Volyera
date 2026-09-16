@@ -1,6 +1,7 @@
-// Fabric module. Mirrors the official Fabric example mod for Minecraft 26.2.
+// Fabric module. Mirrors the official Fabric example mod for Minecraft 26.x.
 //
-// Two things differ from pre-26.1 Fabric mods, because 26.2 ships unobfuscated:
+// Two things differ from pre-26.1 Fabric mods, because Minecraft ships
+// unobfuscated from 26.1 onwards:
 //   * there is no `mappings` dependency at all - Mojang's names are the real names
 //   * the plugin id is `net.fabricmc.fabric-loom` (the non-remapping Loom), and
 //     dependencies use plain `implementation` instead of `modImplementation`
@@ -8,6 +9,11 @@
 // Volyera's content is data-driven, and that is exactly why Fabric API *is*
 // required here: its resource-loader module is what registers a mod's `data/`
 // folder with the game's pack repository. Fabric Loader does not do this.
+//
+// Which Minecraft version this builds against is not decided here. The root
+// build.gradle resolves -Pminecraft_version into rootProject.mc, which carries
+// the version, the matching Fabric API release and the metadata dependency
+// string, so this file never has to know which target it is being asked for.
 plugins {
     id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
@@ -21,23 +27,25 @@ loom {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    minecraft "com.mojang:minecraft:${rootProject.mc.version}"
     implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
 
     // 26.x ships unobfuscated, so mod dependencies use plain `implementation`
     // rather than `modImplementation`. Loom's fabricApi helper reads the
-    // published Fabric API POM to resolve this single module's own version,
-    // which is why gradle.properties pins the Fabric API release and not the
-    // module version.
-    implementation fabricApi.module('fabric-resource-loader-v1', String.valueOf(project.fabric_api_version))
+    // published POM of the Fabric API release named in gradle.properties to
+    // resolve this single module's own version, which is why the property pins
+    // the Fabric API release (0.160.0+26.2, 0.160.6+26.3) and not the module.
+    implementation fabricApi.module('fabric-resource-loader-v1', rootProject.mc.fabricApi)
 }
 
 processResources {
     def v = project.version
+    def mcDependency = rootProject.mc.dependency
     inputs.property 'version', v
+    inputs.property 'minecraftDependency', mcDependency
 
     filesMatching('fabric.mod.json') {
-        expand 'version': v
+        expand 'version': v, 'minecraft_dependency': mcDependency
     }
 }
 

@@ -1,0 +1,55 @@
+{
+  "anvil_cost": 8,
+  "description": {
+    "translate": "enchantment.volyera.colossus"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 2.0,
+          "per_level_above_first": 2.0,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:max_health",
+        "id": "volyera:enchantment.colossus",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 2.0,
+          "per_level_above_first": 2.0,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:armor",
+        "id": "volyera:enchantment.colossus",
+        "operation": "add_value"
+      },
+      {
+        "amount": {
+          "base": 0.15,
+          "per_level_above_first": 0.15,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:knockback_resistance",
+        "id": "volyera:enchantment.colossus",
+        "operation": "add_value"
+      }
+    ]
+  },
+  "exclusive_set": "#volyera:exclusive_set/fortress",
+  "max_cost": {
+    "base": 60,
+    "per_level_above_first": 20
+  },
+  "max_level": 2,
+  "min_cost": {
+    "base": 20,
+    "per_level_above_first": 20
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 1
+}

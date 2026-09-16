@@ -1,0 +1,45 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "translate": "enchantment.volyera.rejuvenation"
+  },
+  "effects": {
+    "minecraft:tick": [
+      {
+        "effect": {
+          "max_amplifier": 0.0,
+          "max_duration": {
+            "base": 2.0,
+            "per_level_above_first": 1.0,
+            "type": "minecraft:linear"
+          },
+          "min_amplifier": 0.0,
+          "min_duration": 2.0,
+          "to_apply": "minecraft:regeneration",
+          "type": "minecraft:apply_mob_effect"
+        },
+        "requirements": {
+          "entity": "this",
+          "predicate": {
+            "minecraft:periodic_tick": 100
+          },
+          "type": "minecraft:entity_properties"
+        }
+      }
+    ]
+  },
+  "max_cost": {
+    "base": 28,
+    "per_level_above_first": 10
+  },
+  "max_level": 3,
+  "min_cost": {
+    "base": 8,
+    "per_level_above_first": 10
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 2
+}

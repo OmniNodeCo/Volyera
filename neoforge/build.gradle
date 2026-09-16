@@ -1,16 +1,30 @@
-// NeoForge module. Mirrors the official MDK for Minecraft 26.2
-// (NeoForgeMDKs/MDK-26.2-ModDevGradle).
+// NeoForge module. Mirrors the official MDK for Minecraft 26.x
+// (NeoForgeMDKs/MDK-<version>-ModDevGradle).
 //
 // There is no Parchment block: Minecraft has shipped parameter names in the
 // jar since 26.1, so there is nothing left for Parchment to add.
+//
+// NeoForge does not ship a stable release for every version Volyera supports,
+// so settings.gradle leaves this module out of the build entirely when
+// gradle.properties has no neo_version_<target> key. That is why there is no
+// version guard here: if this script is being evaluated, a stable NeoForge for
+// the target version exists. The assertion below is a backstop for anyone who
+// re-includes the module by hand.
 plugins {
     id 'java-library'
     id 'net.neoforged.moddev' version "${moddev_version}"
     id 'idea'
 }
 
+if (rootProject.mc.neo == null) {
+    throw new GradleException(
+            "NeoForge has no stable release for Minecraft ${rootProject.mc.version}. " +
+            "Add neo_version_${rootProject.mc.key} to gradle.properties, or build this " +
+            "module with -Pminecraft_version=26.2.")
+}
+
 neoForge {
-    version = project.neo_version
+    version = rootProject.mc.neo
 
     runs {
         client {
@@ -41,24 +55,26 @@ neoForge {
 // Gradle process can ever reach it - which is why CI could drive the Fabric
 // server's console but got nothing back from this one.
 //
-// CI boots a real 26.2 server and asks it to put volyera:warding on an item,
-// next to a minecraft:protection control. That needs a working console, so the
-// run tasks forward stdin. Only for tasks whose name starts with `run`, to leave
-// every other JavaExec alone. Requires Gradle to be in the foreground
-// (--no-daemon), since a daemon has no client stdin to forward.
+// CI boots a real server and asks it to put volyera:warding on an item, next to
+// a minecraft:protection control. That needs a working console, so the run tasks
+// forward stdin. Only for tasks whose name starts with `run`, to leave every
+// other JavaExec alone. Requires Gradle to be in the foreground (--no-daemon),
+// since a daemon has no client stdin to forward.
 tasks.withType(JavaExec).configureEach {
     if (name.startsWith('run')) {
         standardInput = System.in
     }
 }
 
-// META-INF/neoforge.mods.toml is kept as a template so the version strings in
-// it always agree with gradle.properties.
+// META-INF/neoforge.mods.toml is kept as a template so the version strings in it
+// always agree with gradle.properties. Every value comes from rootProject.mc,
+// which the root build.gradle derived from -Pminecraft_version, so the metadata
+// cannot disagree with the artifact name or the data that was packaged.
 var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
+            minecraft_version      : rootProject.mc.version,
+            minecraft_version_range: rootProject.mc.range,
+            neo_version            : rootProject.mc.neo,
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,

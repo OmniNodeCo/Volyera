@@ -1,0 +1,58 @@
+{
+  "anvil_cost": 1,
+  "description": {
+    "translate": "enchantment.volyera.warding"
+  },
+  "effects": {
+    "minecraft:attributes": [
+      {
+        "amount": {
+          "base": 0.5,
+          "per_level_above_first": 0.5,
+          "type": "minecraft:linear"
+        },
+        "attribute": "minecraft:armor_toughness",
+        "id": "volyera:enchantment.warding",
+        "operation": "add_value"
+      }
+    ],
+    "minecraft:damage_protection": [
+      {
+        "effect": {
+          "type": "minecraft:add",
+          "value": {
+            "base": 0.75,
+            "per_level_above_first": 0.75,
+            "type": "minecraft:linear"
+          }
+        },
+        "requirements": {
+          "predicate": {
+            "tags": [
+              {
+                "expected": false,
+                "id": "#minecraft:bypasses_invulnerability"
+              }
+            ]
+          },
+          "type": "minecraft:damage_source_properties"
+        }
+      }
+    ]
+  },
+  "exclusive_set": "#volyera:exclusive_set/protection_family",
+  "max_cost": {
+    "base": 12,
+    "per_level_above_first": 11
+  },
+  "max_level": 4,
+  "min_cost": {
+    "base": 1,
+    "per_level_above_first": 11
+  },
+  "slots": [
+    "armor"
+  ],
+  "supported_items": "#minecraft:enchantable/armor",
+  "weight": 5
+}

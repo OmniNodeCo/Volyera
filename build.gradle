@@ -3,18 +3,69 @@
 // Each module applies its own loader plugin (Fabric Loom or ModDevGradle), and
 // both of those apply Gradle's `java` plugin. `plugins.withId` defers this
 // block until that has happened, so nothing here races the loader plugins.
+//
+// Volyera supports more than one Minecraft version, and the enchantment data is
+// *not* portable between them: 26.3 renamed the condition discriminator from
+// "condition" to "type" and made damage-source tag references "#"-prefixed. So
+// the target version is a build parameter, and everything version-specific -
+// the resource tree, the loader coordinates, the artifact name and the mod
+// metadata - is derived from it here, once, so the modules cannot disagree.
 
 def mcVersion = String.valueOf(minecraft_version)
+def mcKey = mcVersion.replace('.', '_')
+
+def supported = String.valueOf(supported_minecraft_versions)
+        .split(',').collect { it.trim() }.findAll { it }
+if (!supported.contains(mcVersion)) {
+    throw new GradleException(
+            "minecraft_version=${mcVersion} is not supported. Expected one of ${supported}.")
+}
+
 def javaVersion = Integer.parseInt(String.valueOf(java_version))
 def sharedJava = rootProject.file('common/src/main/java')
+
+// Translations and tag files parse identically on every supported version, so
+// they stay shared; only the enchantment definitions are per version.
 def sharedResources = rootProject.file('common/src/main/resources')
+def versionResources = rootProject.file("common/src/mc${mcKey}/resources")
+if (!versionResources.isDirectory()) {
+    throw new GradleException(
+            "No resource tree for Minecraft ${mcVersion} at ${versionResources}. " +
+            "Run: python3 tools/generate_enchantments.py")
+}
+
+// Per-version loader coordinates. A missing key is a hard error rather than a
+// silent fallback to another version's artifact: shipping 26.2 data against a
+// 26.3 loader would build fine and load nothing.
+def require = { String key ->
+    if (!rootProject.hasProperty(key)) {
+        throw new GradleException(
+                "gradle.properties has no ${key} for Minecraft ${mcVersion}.")
+    }
+    return String.valueOf(rootProject.property(key))
+}
+
+// NeoForge is optional per version - settings.gradle leaves :neoforge out of the
+// build entirely when there is no stable release for this one - so this is the
+// only coordinate allowed to be absent.
+def neoKey = "neo_version_${mcKey}"
+rootProject.ext.mc = [
+        version   : mcVersion,
+        key       : mcKey,
+        // NeoForge's mods.toml wants a version range; Fabric's mod json wants a
+        // dependency predicate. Both are derived so neither can drift.
+        range     : "[${mcVersion}]",
+        dependency: "~${mcVersion}",
+        fabricApi : require("fabric_api_version_${mcKey}"),
+        neo       : rootProject.hasProperty(neoKey) ? String.valueOf(rootProject.property(neoKey)) : null,
+]
 
 subprojects {
     plugins.withId('java') {
         group = String.valueOf(rootProject.mod_group)
         version = String.valueOf(rootProject.mod_version)
 
-        // Minecraft 26.2 requires Java 25.
+        // Minecraft 26.2 and 26.3 both require Java 25.
         java.toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
 
         // Volyera's content is data-driven, so the loader-agnostic part is the
@@ -22,8 +73,12 @@ subprojects {
         // few constants both entrypoints share. Compiling it into each module
         // (rather than shipping a nested jar) keeps both jars self-contained
         // and avoids any jar-in-jar handling on either loader.
+        //
+        // versionResources is listed after sharedResources so that if a path
+        // ever existed in both, the version-specific copy would be the one that
+        // wins under the EXCLUDE duplicate strategy below.
         sourceSets.main.java.srcDirs += sharedJava
-        sourceSets.main.resources.srcDirs += sharedResources
+        sourceSets.main.resources.srcDirs += [sharedResources, versionResources]
 
         tasks.withType(JavaCompile).configureEach {
             options.encoding = 'UTF-8'
@@ -38,8 +93,9 @@ subprojects {
             duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         }
 
-        // Keep the loader name in the artifact so both jars can sit in one
-        // mods folder or be uploaded side by side.
+        // Keep the loader name AND the Minecraft version in the artifact, so the
+        // jars for every loader/version pair can sit in one mods folder or be
+        // uploaded side by side without ambiguity.
         plugins.withId('base') {
             base.archivesName = "${rootProject.mod_id}-${project.name}-${mcVersion}"
         }
