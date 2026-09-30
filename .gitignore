@@ -1,36 +1,40 @@
-# Gradle
+# gradle
+
 .gradle/
 build/
-*/build/
+out/
+classes/
 
-# IDEs
+# eclipse
+
+*.launch
+
+# idea
+
 .idea/
 *.iml
 *.ipr
 *.iws
-.vscode/
+
+# vscode
+
 .settings/
+.vscode/
+bin/
 .classpath
 .project
-bin/
-out/
 
-# Minecraft / loader run directories created by `runClient` and `runServer`
+# macos
+
+*.DS_Store
+
+# fabric
+
 run/
-*/run/
-logs/
 
-# Datagen output caches
-*/src/generated/resources/.cache/
+# java
 
-# OS noise
-.DS_Store
-Thumbs.db
-
-# Python (the enchantment authoring tool)
-__pycache__/
-*.pyc
-
-# CI build logs (mirrored into commit comments on failure)
-build-*.log
-build-status.txt
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr

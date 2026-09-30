@@ -1,108 +1,77 @@
-// Shared configuration for both loader modules.
-//
-// Each module applies its own loader plugin (Fabric Loom or ModDevGradle), and
-// both of those apply Gradle's `java` plugin. `plugins.withId` defers this
-// block until that has happened, so nothing here races the loader plugins.
-//
-// Volyera supports more than one Minecraft version, and the enchantment data is
-// *not* portable between them: 26.3 renamed the condition discriminator from
-// "condition" to "type" and made damage-source tag references "#"-prefixed. So
-// the target version is a build parameter, and everything version-specific -
-// the resource tree, the loader coordinates, the artifact name and the mod
-// metadata - is derived from it here, once, so the modules cannot disagree.
-
-def mcVersion = String.valueOf(minecraft_version)
-// Two different transforms of the same version, and mixing them up is a silent
-// build failure: mcKey keys gradle.properties (fabric_api_version_26_2), while
-// mcDir names the resource tree the generator writes (common/src/mc262).
-def mcKey = mcVersion.replace('.', '_')
-def mcDir = 'mc' + mcVersion.replace('.', '')
-
-def supported = String.valueOf(supported_minecraft_versions)
-        .split(',').collect { it.trim() }.findAll { it }
-if (!supported.contains(mcVersion)) {
-    throw new GradleException(
-            "minecraft_version=${mcVersion} is not supported. Expected one of ${supported}.")
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
 }
 
-def javaVersion = Integer.parseInt(String.valueOf(java_version))
-def sharedJava = rootProject.file('common/src/main/java')
-
-// Translations and tag files parse identically on every supported version, so
-// they stay shared; only the enchantment definitions are per version.
-def sharedResources = rootProject.file('common/src/main/resources')
-def versionResources = rootProject.file("common/src/${mcDir}/resources")
-if (!versionResources.isDirectory()) {
-    throw new GradleException(
-            "No resource tree for Minecraft ${mcVersion} at ${versionResources}. " +
-            "Run: python3 tools/generate_enchantments.py")
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
 }
 
-// Per-version loader coordinates. A missing key is a hard error rather than a
-// silent fallback to another version's artifact: shipping 26.2 data against a
-// 26.3 loader would build fine and load nothing.
-def require = { String key ->
-    if (!rootProject.hasProperty(key)) {
-        throw new GradleException(
-                "gradle.properties has no ${key} for Minecraft ${mcVersion}.")
-    }
-    return String.valueOf(rootProject.property(key))
+fabricApi {
+	configureDataGeneration {
+		client = true
+		modId = "volyera"
+	}
 }
 
-// NeoForge is optional per version - settings.gradle leaves :neoforge out of the
-// build entirely when there is no stable release for this one - so this is the
-// only coordinate allowed to be absent.
-def neoKey = "neo_version_${mcKey}"
-rootProject.ext.mc = [
-        version   : mcVersion,
-        key       : mcKey,
-        dir       : mcDir,
-        // NeoForge's mods.toml wants a version range; Fabric's mod json wants a
-        // dependency predicate. Both are derived so neither can drift.
-        range     : "[${mcVersion}]",
-        dependency: "~${mcVersion}",
-        fabricApi : require("fabric_api_version_${mcKey}"),
-        neo       : rootProject.hasProperty(neoKey) ? String.valueOf(rootProject.property(neoKey)) : null,
-]
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-subprojects {
-    plugins.withId('java') {
-        group = String.valueOf(rootProject.mod_group)
-        version = String.valueOf(rootProject.mod_version)
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
 
-        // Minecraft 26.2 and 26.3 both require Java 25.
-        java.toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+processResources {
+	def version = project.version
+	inputs.property "version", version
 
-        // Volyera's content is data-driven, so the loader-agnostic part is the
-        // bulk of the mod: all enchantment JSON, tags and translations, plus a
-        // few constants both entrypoints share. Compiling it into each module
-        // (rather than shipping a nested jar) keeps both jars self-contained
-        // and avoids any jar-in-jar handling on either loader.
-        //
-        // versionResources is listed after sharedResources so that if a path
-        // ever existed in both, the version-specific copy would be the one that
-        // wins under the EXCLUDE duplicate strategy below.
-        sourceSets.main.java.srcDirs += sharedJava
-        sourceSets.main.resources.srcDirs += [sharedResources, versionResources]
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
 
-        tasks.withType(JavaCompile).configureEach {
-            options.encoding = 'UTF-8'
-            options.release = javaVersion
-        }
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
 
-        tasks.withType(ProcessResources).configureEach {
-            // The shared resources contain no ${} placeholders and are never
-            // expanded: Fabric expands only fabric.mod.json, and NeoForge expands
-            // only src/main/templates in its own generateModMetadata task.
-            // EXCLUDE is a safety net in case a module ever shadows a shared path.
-            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        }
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
 
-        // Keep the loader name AND the Minecraft version in the artifact, so the
-        // jars for every loader/version pair can sit in one mods folder or be
-        // uploaded side by side without ambiguity.
-        plugins.withId('base') {
-            base.archivesName = "${rootProject.mod_id}-${project.name}-${mcVersion}"
-        }
-    }
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
 }
