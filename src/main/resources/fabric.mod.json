@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "volyera",
+	"version": "${version}",
+	"name": "Volyera",
+	"description": "A mod that adds enchantments and more",
+	"authors": [
+		"OmniNodeCo"
+	],
+	"contact": {
+		"sources": "https://github.com/OmniNodeCo/Volyera"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/volyera/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.omninodeco.volyera.Volyera"
+		],
+		"fabric-datagen": [
+			"net.omninodeco.volyera.VolyeraDataGenerator"
+		],
+		"client": [
+			"net.omninodeco.volyera.VolyeraModClient"
+		]
+	},
+	"mixins": [
+		"volyera.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
